@@ -1,30 +1,23 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-__author__ = 'web'
 
-from orm.table import Service
-from orm.connector import session
-from orm.function import get_service_id_from_name, get_netword_ip
+from ..table import Service
+from ..connector import session
+from ..function import get_service_id, get_network_ip
 
 
 def get_project_service(project_name, service_name):
-
-    try:
-        sid = get_service_id_from_name(service_name)
-    except Exception, e:
-        return None
-    try:
+    sid = get_service_id(service_name)
+    result = session.query(
+        Service.network_resource_id,
+        Service.port
+    ).filter_by(
+        project_name=project_name,
+        service_name_id=sid
+    ).all()
+    if result:
         res = []
-        for nid, port in session.query(
-                Service.network_resource_id,
-                Service.port
-        ).filter_by(
-            project_name=project_name,
-            service_name_id=sid
-        ):
-            res.append({"ip": get_netword_ip(nid), "port": port, "name": service_name})
-        if not res:
-            return None
+        for nid, port in result:
+            res.append({"ip": get_network_ip(nid), "port": port, "name": service_name})
         return res
-    except Exception, e:
-        return None
+    raise ValueError("invalid project name '%s'" % project_name)
