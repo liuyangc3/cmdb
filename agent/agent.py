@@ -76,11 +76,6 @@ class DeployDate(DeployBase):
         return os.readlink(date)
 
     @property
-    def current_date_index(self):
-        """ 找出current 指向的实际目录,在sorted_dir_list中的位置 """
-        return self.sorted_date_list().index(self.current_date)
-
-    @property
     def _date_list(self):
         date_list = []
         sub_files = os.listdir(self._root)
