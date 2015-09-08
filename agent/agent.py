@@ -70,7 +70,10 @@ class DeployDate(DeployBase):
 
     @property
     def current_date(self):
-        return os.readlink(os.path.join(self._root, self._soft_link))
+        date = os.path.join(self._root, self.link_name)
+        if not os.path.exists(date):
+            self._soft_link(self.sorted_date_list()[-1])
+        return os.readlink(date)
 
     @property
     def current_date_index(self):
