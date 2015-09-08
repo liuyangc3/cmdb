@@ -70,7 +70,7 @@ class DeployDate(DeployBase):
 
     @property
     def current_date(self):
-        return os.readlink(os.path.join(self._root, self.soft_link))
+        return os.readlink(os.path.join(self._root, self._soft_link))
 
     @property
     def current_date_index(self):
@@ -111,7 +111,7 @@ class DeployDate(DeployBase):
         else:
             return False
 
-    def _softlink(self, dir_name):
+    def _soft_link(self, dir_name):
         """ 删除部署目录下的 soft_link
         新建 soft_link 指向 dir """
         os.chdir(self._root)
@@ -127,13 +127,13 @@ class DeployDate(DeployBase):
             if max_timestamp < timestamp < current:
                 max_timestamp = timestamp
         if not max_timestamp:
-            raise RuntimeError('只有一次部署目录，不能找到回滚目录')  # max_timestamp 如果为0 说明容器目录内仅有一个当前工作目录
+            raise RuntimeError('只有一次部署目录，不能找到回滚目录')
         rollback_dir = self.timestamp_to_date(max_timestamp)
         return rollback_dir
 
     def target_rollback(self, target_dir):
         """ 回滚到指定的目录 """
-        self._softlink(target_dir)
+        self._soft_link(target_dir)
         # 删除target日期之前的所有目录
         for ts in self.timestamp_list:
             if ts > self.date_to_timestamp(target_dir):
@@ -144,7 +144,7 @@ class DeployDate(DeployBase):
         """ 回滚到上次部署的目录 """
         if len(self._date_list) == 1:
             raise RuntimeError('只有一次部署目录，无法回滚')
-        self._softlink(self.get_rollback_dir())  # 修改软链接必须在删除目录之前操作
+        self._soft_link(self.get_rollback_dir())  # 修改软链接必须在删除目录之前操作
         shutil.rmtree(os.path.join(self._root, self.current_date))  # 删除当前工作目录
 
 
