@@ -1,0 +1,9 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+__author__ = 'web'
+
+import zerorpc
+
+c = zerorpc.Client()
+c.connect("tcp://127.0.0.1:4242")
+print c.hello("RPC")
