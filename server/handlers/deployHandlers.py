@@ -3,7 +3,7 @@
 from __future__ import absolute_import
 import json
 from tornado.web import RequestHandler
-from orm.cmdb import get_service_info
+
 
 class DeploymnetBase(RequestHandler):
     def initialize(self):
