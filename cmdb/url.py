@@ -1,8 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from handlers.cmdbHandlers import *
-from handlers.deployHandlers import *
+from cmdb.handlers.cmdbHandlers import *
+from cmdb.handlers.deployHandlers import *
 
 re_project_name = '[a-zA-z0-9%]+'
 re_ip_port = '\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}:\d{2,5}'

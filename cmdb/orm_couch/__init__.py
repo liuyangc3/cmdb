@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import re
-import json
 import tornado.ioloop
 from tornado import gen
 from tornado.httpclient import HTTPClient, AsyncHTTPClient, HTTPRequest
@@ -13,12 +12,11 @@ from tornado.escape import json_decode, json_encode, url_escape
 class CouchAsyncHTTPClient(object):
     def __init__(self, url, io_loop, fetch_args=None):
         self.url = url
+        self.io_loop = io_loop
         if fetch_args is None:
             self._fetch_args = dict()
         else:
             self._fetch_args = fetch_args
-        self.io_loop = io_loop
-
         self.client = AsyncHTTPClient(self.io_loop)
 
     def _fetch(self, *args, **kwargs):
@@ -36,7 +34,7 @@ class CouchAsyncHTTPClient(object):
             method="HEAD",
         )
         resp = yield self._fetch(req)
-        raise gen.Return(resp.body)
+        raise gen.Return(resp)
 
     @gen.coroutine
     def get(self, uri):
@@ -65,7 +63,7 @@ class CouchAsyncHTTPClient(object):
             body=data
         )
         resp = yield self._fetch(req, data=data)
-        raise gen.Return(resp.body)
+        raise gen.Return(resp)
 
 
 class CouchBase(object):
@@ -82,18 +80,19 @@ class CouchBase(object):
 
     def set_db(self, db_name):
         HTTPClient().fetch(self.url + db_name)
-        self.client = CouchAsyncHTTPClient(self.url + db_name + '/', self.io_loop)
+        self.client = CouchAsyncHTTPClient(self.url + db_name, self.io_loop)
 
     @gen.coroutine
     def _all_docs(self):
         resp = yield self.client.get('_all_docs')
-        raise gen.Return(json_decode(resp))
+        raise gen.Return(resp.body)
 
     @gen.coroutine
     def list_ids(self):
         res = []
         docs = yield self._all_docs()
-        for value in docs['rows']:
+        docs_json = json_decode(docs)
+        for value in docs_json['rows']:
             _id = value['id']
             # filter id start with _
             if not _id.startswith('_'):

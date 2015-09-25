@@ -5,8 +5,7 @@ import json
 from tornado.web import RequestHandler, asynchronous
 from tornado import gen
 
-# from orm_couch import Service
-from server.orm_couch import Service
+from cmdb.orm_couch import Service
 
 
 def json_encode(value):
@@ -22,7 +21,7 @@ def parse_args(tornado_args):
 
 class BaseHandler(RequestHandler):
     def initialize(self):
-        self.couch = Service(url="http://172.16.200.51:5984/")
+        self.couch = Service()
         self.couch.set_db('cmdb')
 
 
