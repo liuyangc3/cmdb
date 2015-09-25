@@ -69,7 +69,7 @@ class CouchAsyncHTTPClient(object):
 
 
 class CouchBase(object):
-    def __init__(self, url="http://127.0.0.1:5984/", io_loop=None):
+    def __init__(self, url, io_loop=None):
         self.client = None
         if not url.endswith('/'):
             url += '/'
@@ -128,8 +128,8 @@ class Service(CouchBase):
         "61616",  # activemq
     ]
 
-    def __init__(self, url, io_loop=None):
-        super(Service, self).__init__(url, io_loop)
+    def __init__(self, url="http://127.0.0.1:5984/", io_loop=None):
+        super(Service, self).__init__(url, io_loop=io_loop)
 
     @gen.coroutine
     def list_service_id(self):

@@ -5,7 +5,8 @@ import json
 from tornado.web import RequestHandler, asynchronous
 from tornado import gen
 
-from ..orm_couch import Service
+# from orm_couch import Service
+from server.orm_couch import Service
 
 
 def json_encode(value):

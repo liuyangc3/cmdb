@@ -10,7 +10,7 @@ re_ip_port = '\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}:\d{2,5}'
 handlers = [
     (r'/', H),
     (r'/service/_list', ServiceHanlder),
-    (r'/service/({0})'.format(re_ip_port), S),
+    (r'/service/({0})'.format(re_ip_port), ServiceOperationHanlder),
 
     # # /api/v1/(project_name)/(service_name)
     # (r'/api/v1/(%s)/(\w+)' % re_project_name,

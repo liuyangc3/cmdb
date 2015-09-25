@@ -35,7 +35,7 @@ class FooHanlder(RequestHandler):
         raise gen.Return(response.body[:100])
 
 
-class Test_Class_CouchBase(AsyncHTTPTestCase):
+class TestCouchBase(AsyncHTTPTestCase):
     def get_app(self):
         application = Application([
             (r'/service/(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}:\d{2,5})', FooHanlder)
@@ -43,7 +43,7 @@ class Test_Class_CouchBase(AsyncHTTPTestCase):
         return application
 
     def setUp(self):
-        super(Test_Class_CouchBase, self).setUp()  # setup io_loop
+        super(TestCouchBase, self).setUp()  # setup io_loop
         self.couch = Service('http://172.16.200.51:5984', self.io_loop)
         self.couch.set_db('cmdb')
 
