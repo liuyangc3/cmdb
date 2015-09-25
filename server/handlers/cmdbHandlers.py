@@ -10,6 +10,7 @@ from tornado import gen
 # ff.CouchBase as CouchBase
 # from couchdbs.f import CouchBase
 from ..orm_couch.ff import CouchBase
+# from  orm_couch.ff import CouchBase
 
 
 def json_encode(value):
@@ -43,20 +44,20 @@ class S(BaseHandler):
         self.finish()
 
 
-class ProjectHandler(RequestHandler):
-    def get(self, project_name, service_name):
-        self.write(
-            json.dumps(get_project_service(project_name, service_name))
-        )
-
-
-class ServicesHandler(RequestHandler):
-    def get(self, service_name):
-        pass
-
-
-class ServiceHandler(RequestHandler):
-    def get(self, ip, port):
-        self.write(json.dumps(
-            get_service_info(ip, port)
-        ))
+# class ProjectHandler(RequestHandler):
+#     def get(self, project_name, service_name):
+#         self.write(
+#             json.dumps(get_project_service(project_name, service_name))
+#         )
+#
+#
+# class ServicesHandler(RequestHandler):
+#     def get(self, service_name):
+#         pass
+#
+#
+# class ServiceHandler(RequestHandler):
+#     def get(self, ip, port):
+#         self.write(json.dumps(
+#             get_service_info(ip, port)
+#         ))
