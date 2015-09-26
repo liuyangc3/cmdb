@@ -4,7 +4,7 @@
 import re
 import tornado.ioloop
 from tornado import gen
-from tornado.httpclient import HTTPClient, AsyncHTTPClient, HTTPRequest
+from tornado.httpclient import HTTPClient, AsyncHTTPClient, HTTPRequest, HTTPError
 from tornado.httputil import HTTPHeaders
 from tornado.escape import json_decode, json_encode, url_escape
 
@@ -46,23 +46,22 @@ class CouchAsyncHTTPClient(object):
         raise gen.Return(resp)
 
     @gen.coroutine
-    def post(self, uri, data):
-        req = HTTPRequest(
-            "{0}/{1}".format(self.url, url_escape(uri)),
-            method="POST",
-            body=data
-        )
-        resp = yield self._fetch(req)
-        raise gen.Return(resp.body)
-
-    @gen.coroutine
     def put(self, uri, data):
         req = HTTPRequest(
             "{0}/{1}".format(self.url, url_escape(uri)),
             method="PUT",
             body=data
         )
-        resp = yield self._fetch(req, data=data)
+        resp = yield self._fetch(req)
+        raise gen.Return(resp)
+
+    @gen.coroutine
+    def delete(self, uri, rev):
+        req = HTTPRequest(
+            "{0}/{1}?rev={2}".format(self.url, url_escape(uri), rev),
+            method="DELETE"
+        )
+        resp = yield self._fetch(req)
         raise gen.Return(resp)
 
 
@@ -106,14 +105,25 @@ class CouchBase(object):
 
     @gen.coroutine
     def has_doc(self, doc_id):
-        resp = yield self.client.get(doc_id)
-        raise gen.Return(resp.code)
+        try:
+            resp = yield self.client.head(doc_id)
+            raise gen.Return(resp.code == 200)
+        except HTTPError as e:
+            raise gen.Return(False)
 
     @gen.coroutine
-    def doc_rev(self, doc_id):
-        resp = yield self.client.head(doc_id)
-        resp_json = json_decode(resp)
-        raise gen.Return(resp_json['_rev'])
+    def del_doc(self, doc_id):
+        rev = yield self.get_doc_rev(doc_id)
+        resp = yield self.client.delete(doc_id, rev)
+        raise gen.Return(resp.code == 200)
+
+    @gen.coroutine
+    def get_doc_rev(self, doc_id):
+        exist = yield self.has_doc(doc_id)
+        if exist:
+            resp = yield self.client.head(doc_id)
+            raise gen.Return(resp.headers['Etag'].strip('"'))
+        raise gen.Return(None)
 
 
 class Service(CouchBase):
@@ -140,18 +150,33 @@ class Service(CouchBase):
         raise gen.Return(res)
 
     @gen.coroutine
-    def add_service(self, service_id, name=None, **kwargs):
+    def _add_service(self, service_id, name=None, **kwargs):
         ip, port = service_id.split(':')
         if port not in self.services and not name:
             raise ValueError('must set service name')
-        service_id = '{0}:{1}'.format(ip, port)
         doc = self.doc.copy()
         doc.update({"_id": service_id, "ip": ip, "port": port}, **kwargs)
         resp = yield self.client.put(service_id, json_encode(doc))
-        raise gen.Return(resp)
+        raise gen.Return(resp.body)
 
-    def update_service(self, service_id):
-        pass
+    @gen.coroutine
+    def _update_service(self, service_id, **kwargs):
+        doc = yield self.get_doc(service_id)
+        doc_json = json_decode(doc)
+        doc_json.update(kwargs)
+        resp = yield self.client.put(service_id, json_encode(doc_json))
+        raise gen.Return(resp.body)
+
+    @gen.coroutine
+    def save_service(self, service_id, **kwargs):
+        exist = yield self.has_doc(service_id)
+        if exist:
+            resp = yield self._update_service(service_id, **kwargs)
+            raise gen.Return(resp)
+        else:
+            resp = yield self._add_service(service_id, **kwargs)
+            raise gen.Return(resp)
+
 
 
 class Project(object):

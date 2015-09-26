@@ -54,9 +54,8 @@ class ServiceOperationHanlder(BaseHandler):
     @gen.coroutine
     def put(self, _id):
         data = parse_args(self.request.arguments)
-        resp = yield self.couch.add_service(_id, **data)
+        resp = yield self.couch.save_service(_id, **data)
         self.write(json_encode(resp))
-
 
     @asynchronous
     @gen.coroutine
