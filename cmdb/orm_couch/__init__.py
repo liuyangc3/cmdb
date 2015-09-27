@@ -4,7 +4,8 @@
 import re
 import tornado.ioloop
 from tornado import gen
-from tornado.httpclient import HTTPClient, AsyncHTTPClient, HTTPRequest, HTTPError
+from tornado.httpclient import HTTPClient, AsyncHTTPClient
+from tornado.httpclient import HTTPRequest, HTTPError
 from tornado.httputil import HTTPHeaders
 from tornado.escape import json_decode, json_encode, url_escape
 
@@ -46,11 +47,11 @@ class CouchAsyncHTTPClient(object):
         raise gen.Return(resp)
 
     @gen.coroutine
-    def put(self, uri, data):
+    def put(self, uri, doc):
         req = HTTPRequest(
             "{0}/{1}".format(self.url, url_escape(uri)),
             method="PUT",
-            body=data
+            body=json_encode(doc)
         )
         resp = yield self._fetch(req)
         raise gen.Return(resp)
@@ -101,7 +102,8 @@ class CouchBase(object):
     @gen.coroutine
     def get_doc(self, doc_id):
         resp = yield self.client.get(doc_id)
-        raise gen.Return(resp.body)
+        _dict = json_decode(resp.body)
+        raise gen.Return(Document(_dict))
 
     @gen.coroutine
     def has_doc(self, doc_id):
@@ -110,6 +112,11 @@ class CouchBase(object):
             raise gen.Return(resp.code == 200)
         except HTTPError as e:
             raise gen.Return(False)
+
+    @gen.coroutine
+    def update_doc(self, doc_id, doc):
+        resp = yield self.client.put(doc_id, doc)
+        raise gen.Return(resp.body)
 
     @gen.coroutine
     def del_doc(self, doc_id):
@@ -126,16 +133,24 @@ class CouchBase(object):
         raise gen.Return(None)
 
 
+class Document(dict):
+    def __init__(self, _dict):
+        self.update(_dict)
+
+    def __setitem__(self, key, value):
+        return super(Document, self).__setitem__(unicode(key), value)
+
+
 class Service(CouchBase):
     doc = {"type": "service"}
-    services = [
-        "2181",  # zookeeper
-        "3306",  # mysql
-        "8080",  # tomcat
-        "11211",  # memcache
-        "22201",  # memcacheq
-        "61616",  # activemq
-    ]
+    services = {
+        "2181": "zookeeper",
+        "3306": "mysql",
+        "8080": "tomcat",
+        "11211": "memcache",
+        "22201": "memcacheq",
+        "61616": "activemq"
+    }
 
     def __init__(self, url="http://127.0.0.1:5984/", io_loop=None):
         super(Service, self).__init__(url, io_loop=io_loop)
@@ -150,55 +165,60 @@ class Service(CouchBase):
         raise gen.Return(res)
 
     @gen.coroutine
-    def _add_service(self, service_id, name=None, **kwargs):
+    def _add_service(self, service_id, _dict):
         ip, port = service_id.split(':')
-        if port not in self.services and not name:
-            raise ValueError('must set service name')
         doc = self.doc.copy()
-        doc.update({"_id": service_id, "ip": ip, "port": port}, **kwargs)
-        resp = yield self.client.put(service_id, json_encode(doc))
+        doc.update({"_id": service_id, "ip": ip, "port": port})
+        doc.update(_dict)
+        resp = yield self.client.put(service_id, doc)
         raise gen.Return(resp.body)
 
     @gen.coroutine
-    def _update_service(self, service_id, **kwargs):
-        doc = yield self.get_doc(service_id)
-        doc_json = json_decode(doc)
-        doc_json.update(kwargs)
-        resp = yield self.client.put(service_id, json_encode(doc_json))
-        raise gen.Return(resp.body)
-
-    @gen.coroutine
-    def save_service(self, service_id, **kwargs):
+    def add_service(self, service_id, _dict=None):
         exist = yield self.has_doc(service_id)
         if exist:
-            resp = yield self._update_service(service_id, **kwargs)
-            raise gen.Return(resp)
+            raise KeyError('service id exist')
         else:
-            resp = yield self._add_service(service_id, **kwargs)
-            raise gen.Return(resp)
+            port = service_id.split(':')[1]
+            try:
+                if not _dict:
+                    _dict = {"name": self.services[port]}
+                    resp = yield self._add_service(service_id, _dict)
+                    raise gen.Return(resp)
+                elif "name" not in _dict:
+                    _dict.update({"name": self.services[port]})
+                resp = yield self._add_service(service_id, _dict)
+                raise gen.Return(resp)
+            except KeyError as e:
+                raise ValueError('not found service name in uri argument')
 
 
-
-class Project(object):
+class Project(CouchBase):
     doc = {"type": "project"}
 
-    def __init__(self, couchdb):
-        self.db = couchdb
+    def __init__(self, url="http://127.0.0.1:5984/", io_loop=None):
+        super(Project, self).__init__(url, io_loop=io_loop)
 
-    def __getitem__(self, _id):
-        return self.db[_id]
+    @gen.coroutine
+    def add_service(self, project_id, **kwargs):
+        pass
 
-    def add_project(self, project_name, services=None):
-        _id = project_name
+    @gen.coroutine
+    def _add_project(self, project_id, **kwargs):
         doc = self.doc.copy()
-        doc.update({"_id": _id, "services": services})
-        return self.db.save(doc)
+        doc.update({"_id": project_id}, **kwargs)
+        resp = yield self.client.put(project_id, json_encode(doc))
+        raise gen.Return(resp.body)
 
-    def add_service(self, _id, service_id):
-        pass
-
-    def delete_service(self, _id, service_id):
-        pass
+    @gen.coroutine
+    def save_project(self, project_id, **kwargs):
+        exist = yield self.has_doc(project_id)
+        if exist:
+            resp = yield self.update_doc(project_id, **kwargs)
+            raise gen.Return(resp)
+        else:
+            resp = yield self._add_project(project_id, **kwargs)
+            raise gen.Return(resp)
 
 
 if __name__ == '__main__':

@@ -1,20 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import json
 from tornado.web import RequestHandler, asynchronous
+from tornado.escape import json_encode, json_decode
 from tornado import gen
 
 from cmdb.orm_couch import Service
 
 
-def json_encode(value):
-    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
-
-
-def parse_args(tornado_args):
+def parse_args(tornado_arguments):
     _dict = {}
-    for k, v in tornado_args.items():
+    for k, v in tornado_arguments.items():
         _dict[k] = v[0]
     return _dict
 
@@ -42,20 +38,31 @@ class ServiceHanlder(BaseHandler):
         self.write(json_encode(resp))
 
 
-class ServiceOperationHanlder(BaseHandler):
+class ServiceRegexpHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, _id):
-        resp = yield self.couch.list_service_id()
+        resp = yield self.couch.get_doc(_id)
         self.write(json_encode(resp))
         self.finish()
 
     @asynchronous
     @gen.coroutine
+    def post(self, _id):
+        # data = parse_args(self.request.arguments)
+        data = parse_args(self.request.body_arguments)
+        resp = yield self.couch.add_service(_id, data)
+        self.write(resp)
+        self.finish()
+
+    @asynchronous
+    @gen.coroutine
     def put(self, _id):
-        data = parse_args(self.request.arguments)
-        resp = yield self.couch.save_service(_id, **data)
-        self.write(json_encode(resp))
+        data = json_decode(self.request.body)
+        resp = yield self.couch.update_doc(_id, data)
+        print(resp)
+        # self.write(resp.strip('"'))
+        self.finish()
 
     @asynchronous
     @gen.coroutine

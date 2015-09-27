@@ -4,7 +4,7 @@
 import mock
 from tornado.concurrent import Future
 from tornado.escape import json_decode
-from tornado.httpclient import HTTPRequest, HTTPResponse
+from tornado.httpclient import HTTPRequest, HTTPResponse, HTTPError
 from tornado.testing import AsyncTestCase
 from tornado.testing import gen_test
 
@@ -31,13 +31,27 @@ class TestCouchBase(AsyncTestCase):
     @gen_test(timeout=3)
     def test_get_doc(self):
         response = yield self.couch.get_doc('172.16.200.211:8080')
-        r = json_decode(response)
-        self.assertIsInstance(r, dict)
+        self.assertEqual('172.16.200.211', response['ip'])
+        self.assertEqual('8080', response['port'])
+        self.assertEqual('service', response['type'])
+
+        try:
+            yield self.couch.get_doc('not exist')
+        except Exception as e:
+            self.assertIsInstance(e, HTTPError)
 
     @gen_test(timeout=3)
     def test_has_doc(self):
         response = yield self.couch.has_doc('172.16.200.211:8080')
         self.assertEqual(True, response)
+        response = yield self.couch.has_doc('not exist')
+        self.assertEqual(False, response)
+
+    @gen_test(timeout=3)
+    def test_update_doc(self):
+        response = yield self.couch.update_doc('172.16.200.211:8080', name=123)
+        r = json_decode(response)
+        self.assertEqual(True, r['ok'])
 
     @gen_test(timeout=3)
     def test_del_doc(self):
@@ -57,11 +71,34 @@ class TestService(AsyncTestCase):
         self.couch.set_db('cmdb')
 
     @gen_test(timeout=3)
-    def test_save_service(self):
-        response = yield self.couch.save_service('172.16.200.211:8080', x=1)
+    def tearDown(self):
+        yield self.couch.del_doc('172.16.200.999:8080')
+        yield self.couch.del_doc('172.16.200.999:9999')
+
+    @gen_test(timeout=3)
+    def test_add_service(self):
+        try:
+            yield self.couch.add_service('172.16.200.999:9999')
+        except Exception as e:
+            self.assertIsInstance(e, ValueError)
+
+        try:
+            yield self.couch.add_service('172.16.200.999:9999', {"no name": 1})
+        except Exception as e:
+            self.assertIsInstance(e, ValueError)
+
+        response = yield self.couch.add_service('172.16.200.999:9999', {"name": "test"})
         r = json_decode(response)
         self.assertEqual(True, r["ok"])
 
+        response = yield self.couch.add_service('172.16.200.999:8080')
+        r = json_decode(response)
+        self.assertEqual(True, r["ok"])
+
+        try:
+            yield self.couch.add_service('172.16.200.999:8080')
+        except Exception as e:
+            self.assertIsInstance(e, KeyError)
 
 def setup_fetch(fetch_mock, status_code, body=None):
     def side_effect(request, **kwargs):
