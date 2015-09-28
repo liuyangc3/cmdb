@@ -1,11 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+from __future__ import unicode_literals
 from tornado.web import RequestHandler, asynchronous
+from tornado.httpclient import HTTPError
 from tornado.escape import json_encode, json_decode
 from tornado import gen
 
-from cmdb.orm_couch import Service
+from cmdb.orm_couch import Service, Project
 
 
 def parse_args(tornado_arguments):
@@ -17,72 +19,120 @@ def parse_args(tornado_arguments):
 
 class BaseHandler(RequestHandler):
     def initialize(self):
-        self.couch = Service()
-        self.couch.set_db('cmdb')
-
-
-class H(BaseHandler):
-    @asynchronous
-    @gen.coroutine
-    def get(self):
-        resp = yield self.couch.list_ids()
-        self.write(json_encode(resp))
-        self.finish()
+        self.service = Service()
+        self.service.set_db('cmdb')
+        self.project = Project()
+        self.project.set_db('cmdb')
+        self.service_dict = {"type": "service"}
+        self.project_dict = {"type": "project"}
 
 
 class ServiceHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self):
-        resp = yield self.couch.list_service_id()
+        resp = yield self.service.list_service_id()
         self.write(json_encode(resp))
 
 
 class ServiceRegexpHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
-    def get(self, _id):
-        resp = yield self.couch.get_doc(_id)
+    def get(self, service_id):
+        resp = yield self.service.get_doc(service_id)
         self.write(json_encode(resp))
         self.finish()
 
     @asynchronous
     @gen.coroutine
-    def post(self, _id):
-        # data = parse_args(self.request.arguments)
-        data = parse_args(self.request.body_arguments)
-        resp = yield self.couch.add_service(_id, data)
-        self.write(resp)
+    def post(self, service_id):
+        _dict = self.service_dict.copy()
+        if self.request.body != '':
+            _dict.update(parse_args(self.request.body_arguments))
+        try:
+            resp = yield self.service.add_service(service_id, _dict)
+            self.write(resp)
+        except ValueError as e:
+            self.write('{{"ok": false, "msg": "{0}"}}'.format(e.message))
         self.finish()
 
     @asynchronous
     @gen.coroutine
-    def put(self, _id):
-        data = json_decode(self.request.body)
-        resp = yield self.couch.update_doc(_id, data)
-        print(resp)
-        # self.write(resp.strip('"'))
+    def put(self, service_id):
+        try:
+            doc = yield self.service.get_doc(service_id)
+            if self.request.body != '':
+                doc.update(parse_args(self.request.body_arguments))
+                resp = yield self.service.update_doc(service_id, doc)
+                self.write(resp)
+            else:
+                self.write('{"ok": false, "msg": "Request body is empty"}')
+        except HTTPError:
+            self.write('{"ok": false, "msg": "Service Not Found"}')
         self.finish()
 
     @asynchronous
     @gen.coroutine
-    def delete(self, _id):
-        pass
+    def delete(self, service_id):
+        del_service = self.get_arguments('all')
+        if del_service:
+            try:
+                resp = yield self.service.del_doc(service_id)
+                if resp:
+                    self.write('{"ok": true, "msg": "Service deleted"}')
+            except HTTPError:
+                self.write('{"ok": false, "msg": "Service Not Found"}')
+            self.finish()
+            return
 
-# class ProjectHandler(RequestHandler):
-#     def get(self, project_name, service_name):
-#         self.write(
-#             json.dumps(get_project_service(project_name, service_name))
-#         )
-#
-#
-# class ServicesHandler(RequestHandler):
-#     def get(self, service_name):
-#         pass
-#
-#
-# class ServiceHandler(RequestHandler):
-#     def get(self, ip, port):
-#         self.write(json.dumps(
-#             get_service_info(ip, port)
-#         ))
+        fields = self.get_arguments('field')
+        if fields:
+            fields_exist = False
+            doc = yield self.service.get_doc(service_id)
+            for field in fields:
+                if field in doc:
+                    fields_exist = True
+                    del doc[field]
+            if fields_exist:
+                resp = yield self.service.update_doc(service_id, doc)
+                self.write(resp)
+            else:
+                self.write('{{"ok": false, "msg": "fields {0} Not Found"}}'.format(fields))
+        self.finish()
+
+
+class ProjectHandler(BaseHandler):
+    @asynchronous
+    @gen.coroutine
+    def get(self, project_id):
+        resp = yield self.project.list_ids()
+        self.write(json_encode(resp))
+
+    @asynchronous
+    @gen.coroutine
+    def post(self, project_id):
+        _dict = self.project_dict.copy()
+        if self.request.body != '':
+            _dict.update(parse_args(self.request.body_arguments))
+        try:
+            resp = yield self.project.add_project(project_id, _dict)
+            self.write(resp)
+        except KeyError as e:
+            self.write('{{"ok": false, "msg": "{0}"}}'.format(e.message))
+        self.finish()
+
+    @asynchronous
+    @gen.coroutine
+    def put(self, project_id):
+        try:
+            doc = yield self.service.get_doc(project_id)
+            if self.request.body != '':
+                _dict = json_decode(self.request.body)
+                doc = self.project.check_service(_dict, doc)
+                resp = yield self.project.update_doc(project_id, doc)
+                self.write(resp)
+            else:
+                self.write('{"ok": false, "msg": "Request body is empty"}')
+        except HTTPError:
+            self.write('{"ok": false, "msg": "Project Not Found"}')
+        self.finish()
