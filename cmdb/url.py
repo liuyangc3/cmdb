@@ -24,8 +24,4 @@ handlers = [
     #  ServiceHandler),
 
     # /api/v1/deployment/search/(ip)/(port)/deploymentDate
-    (r'/api/v1/deployment/search/(%s)/(\d+)/deploymentDate' % re_ip_port,
-     DeploymentDateHandler),
-
-
 ]
