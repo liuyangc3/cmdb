@@ -1,72 +1,17 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+# -*- coding:utf-8 -*-
 
 from __future__ import unicode_literals
 import re
-import tornado.ioloop
+
 from tornado import gen
-from tornado.httpclient import HTTPClient, AsyncHTTPClient
-from tornado.httpclient import HTTPRequest, HTTPError
-from tornado.httputil import HTTPHeaders
-from tornado.escape import json_decode, json_encode, url_escape
+from tornado import ioloop
+from tornado.httpclient import HTTPClient
+from tornado.httpclient import HTTPError
+from tornado.escape import json_decode
 
-from cmdb.conf import CouchdbConf, service_map
-
-
-class CouchAsyncHTTPClient(object):
-    def __init__(self, url, io_loop, fetch_args=None):
-        self.url = url
-        self.io_loop = io_loop
-        if fetch_args is None:
-            self._fetch_args = dict()
-        else:
-            self._fetch_args = fetch_args
-        self.client = AsyncHTTPClient(self.io_loop)
-
-    def _fetch(self, *args, **kwargs):
-        fetch_args = {
-            'headers': HTTPHeaders({'Content-Type': 'application/json'})
-        }
-        fetch_args.update(self._fetch_args)
-        fetch_args.update(kwargs)
-        return self.client.fetch(*args, **fetch_args)
-
-    @gen.coroutine
-    def head(self, uri):
-        req = HTTPRequest(
-            "{0}/{1}".format(self.url, url_escape(uri)),
-            method="HEAD",
-        )
-        resp = yield self._fetch(req)
-        raise gen.Return(resp)
-
-    @gen.coroutine
-    def get(self, uri):
-        req = HTTPRequest(
-            "{0}/{1}".format(self.url, url_escape(uri)),
-            method="GET",
-        )
-        resp = yield self._fetch(req)
-        raise gen.Return(resp)
-
-    @gen.coroutine
-    def put(self, uri, doc):
-        req = HTTPRequest(
-            "{0}/{1}".format(self.url, url_escape(uri)),
-            method="PUT",
-            body=json_encode(doc)
-        )
-        resp = yield self._fetch(req)
-        raise gen.Return(resp)
-
-    @gen.coroutine
-    def delete(self, uri, rev):
-        req = HTTPRequest(
-            "{0}/{1}?rev={2}".format(self.url, url_escape(uri), rev),
-            method="DELETE"
-        )
-        resp = yield self._fetch(req)
-        raise gen.Return(resp)
+from cmdb.utils.httpclient import CouchAsyncHTTPClient
+from cmdb.conf import couch, service_map
 
 
 class Document(dict):
@@ -80,22 +25,13 @@ class Document(dict):
 
 class CouchBase(object):
     def __init__(self, url, io_loop=None):
-        self.client = None
-        if not url.endswith('/'):
-            url += '/'
-        self.url = url
-
-        if io_loop is None:
-            self.io_loop = tornado.ioloop.IOLoop.instance()
-        else:
-            self.io_loop = io_loop
-
-    def set_db(self, db_name):
+        self.url = url if url.endswith('/') else url + '/'
+        self.io_loop = io_loop or ioloop.IOLoop.instance()
         try:
-            HTTPClient().fetch(self.url + db_name)
-            self.client = CouchAsyncHTTPClient(self.url + db_name, self.io_loop)
+            HTTPClient().fetch(self.url)
+            self.client = CouchAsyncHTTPClient(self.url, self.io_loop)
         except HTTPError:
-            raise ValueError('can not found database {0}'.format(db_name))
+            raise ValueError('can not found database')
 
     @gen.coroutine
     def _all_docs(self):
@@ -149,8 +85,8 @@ class CouchBase(object):
 
 
 class Service(CouchBase):
-    def __init__(self, url=CouchdbConf.url, io_loop=None):
-        super(Service, self).__init__(url, io_loop=io_loop)
+    def __init__(self, url=couch['url'], io_loop=None):
+        super(Service, self).__init__(url, io_loop)
 
     @gen.coroutine
     def list_service_id(self):
@@ -185,8 +121,18 @@ class Service(CouchBase):
 
 
 class Project(CouchBase):
-    def __init__(self, url=CouchdbConf.url, io_loop=None):
-        super(Project, self).__init__(url, io_loop=io_loop)
+    def __init__(self, url=couch['url'], io_loop=None):
+        super(Project, self).__init__(url, io_loop)
+
+    @staticmethod
+    def check_service(_dict, doc):
+        if 'services' in _dict:
+            services = json_decode(_dict['services'])
+            if 'services' in doc:
+                services = list(set(services).union(set(doc['services'])))
+            _dict['services'] = services
+        doc.update(_dict)
+        return doc
 
     @gen.coroutine
     def add_project(self, project_id, _dict):
@@ -198,12 +144,4 @@ class Project(CouchBase):
             resp = yield self.update_doc(project_id, _dict)
             raise gen.Return(resp)
 
-    @staticmethod
-    def check_service(_dict, doc):
-        if 'services' in _dict:
-            services = json_decode(_dict['services'])
-            if 'services' in doc:
-                services = list(set(services).union(set(doc['services'])))
-            _dict['services'] = services
-        doc.update(_dict)
-        return doc
+

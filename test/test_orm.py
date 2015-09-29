@@ -9,14 +9,13 @@ from tornado.httpclient import HTTPError
 from tornado.testing import AsyncTestCase
 from tornado.testing import gen_test
 
-from cmdb.orm_couch import Service, Project
+from cmdb.orm import Service, Project
 
 
 class TestCouchBase(AsyncTestCase):
     def setUp(self):
         super(TestCouchBase, self).setUp()  # setup io_loop
         self.couch = Service(io_loop=self.io_loop)
-        self.couch.set_db('cmdb')
         self.test_ip = "test_ip"
         self.test_port = 8080
         self.service_id = "{0}:{1}".format(self.test_ip, self.test_port)
@@ -38,7 +37,8 @@ class TestCouchBase(AsyncTestCase):
     def test_all_docs(self):
         response = yield self.couch._all_docs()
         r = json_decode(response)
-        self.assertEqual(r['rows'][0]['value']['_id'], self.service_id)
+        print(r)
+        self.assertEqual(r['rows'][0]['value']['id'], self.service_id)
 
     @gen_test(timeout=3)
     def test_list_ids(self):
@@ -79,7 +79,6 @@ class TestService(AsyncTestCase):
     def setUp(self):
         super(TestService, self).setUp()  # setup io_loop
         self.service = Service(io_loop=self.io_loop)
-        self.service.set_db('cmdb')
         self.test_ip = "test_ip"
         self.service_id_with_default_port = 'test_ip:8080'
         self.service_id_not_default_port = 'test_ip:9999'
@@ -123,7 +122,6 @@ class TestProject(AsyncTestCase):
     def setUp(self):
         super(TestProject, self).setUp()  # setup io_loop
         self.project = Project(io_loop=self.io_loop)
-        self.project.set_db('cmdb')
         self.project_id = '测试项目'
         self.services = ['test_ip:8080', 'test_ip:9999']
 

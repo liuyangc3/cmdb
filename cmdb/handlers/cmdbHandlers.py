@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+
 from tornado.web import RequestHandler, asynchronous
 from tornado.httpclient import HTTPError
 from tornado.escape import json_encode, json_decode
 from tornado import gen
 
-from cmdb.orm_couch import Service, Project
+from cmdb.orm import Service, Project
 
 
 def parse_args(tornado_arguments):
@@ -20,9 +21,7 @@ def parse_args(tornado_arguments):
 class BaseHandler(RequestHandler):
     def initialize(self):
         self.service = Service()
-        self.service.set_db('cmdb')
         self.project = Project()
-        self.project.set_db('cmdb')
         self.service_dict = {"type": "service"}
         self.project_dict = {"type": "project"}
 
@@ -53,6 +52,7 @@ class ServiceRegexpHanlder(BaseHandler):
             resp = yield self.service.add_service(service_id, _dict)
             self.write(resp)
         except ValueError as e:
+            self.set_status(401)
             self.write('{{"ok": false, "msg": "{0}"}}'.format(e.message))
         self.finish()
 
