@@ -91,8 +91,11 @@ class CouchBase(object):
             self.io_loop = io_loop
 
     def set_db(self, db_name):
-        HTTPClient().fetch(self.url + db_name)
-        self.client = CouchAsyncHTTPClient(self.url + db_name, self.io_loop)
+        try:
+            HTTPClient().fetch(self.url + db_name)
+            self.client = CouchAsyncHTTPClient(self.url + db_name, self.io_loop)
+        except HTTPError:
+            raise ValueError('can not found database {0}'.format(db_name))
 
     @gen.coroutine
     def _all_docs(self):

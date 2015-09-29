@@ -75,7 +75,7 @@ class TestServiceHandlers(AsyncHTTPTestCase):
     @gen_test(timeout=5)
     def test_service_post(self):
         """ POST /api/v1/service/service_id """
-        yield self.service.add_service(self.service_id, {"type": "service"})
+        # yield self.service.add_service(self.service_id, {"type": "service"})
         response = yield self.http_client.fetch(
             self.get_url('/api/v1/service/{0}'.format(self.service_id)),
             method="POST",
