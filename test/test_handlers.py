@@ -15,9 +15,9 @@ from cmdb.orm import Service, Project
 
 class TestApplication(web.Application):
     def __init__(self):
-        from cmdb.route import handlers
+        from cmdb.route import router
         settings = dict(debug=True)
-        super(TestApplication, self).__init__(handlers, **settings)
+        super(TestApplication, self).__init__(router, **settings)
 
 
 class TestServiceHandlers(AsyncHTTPTestCase):
@@ -26,19 +26,9 @@ class TestServiceHandlers(AsyncHTTPTestCase):
 
     def setUp(self):
         super(TestServiceHandlers, self).setUp()
-        self.service_id = '111.222.333.444:8080'
+        self.service_id = '1.1.1.1:8080'
         self.f = Future()
-        self.service = Service()
-        # self.service_id_not_default_port = '172.16.200.999:9090'
-        # self.ids = r'["172.16.200.105:8080"]'
-
-    # @patch.object(CouchBase, 'list_ids')
-    # @gen_test(timeout=5)
-    # def test_root(self, mock_list_ids):
-    #     self.f.set_result(self.ids)
-    #     mock_list_ids.return_value = self.f
-    #     response = yield self.http_client.fetch(self.get_url('/'))
-    #     self.assertEqual(self.ids, response.body.decode('string-escape').strip('"'))
+        self.service = Service(io_loop=self.io_loop)
 
     def get_new_ioloop(self):
         # AsyncHTTPTestCase creates its own local IOLoop
@@ -47,8 +37,20 @@ class TestServiceHandlers(AsyncHTTPTestCase):
         return IOLoop.instance()
 
     @gen_test(timeout=3)
-    def tearDown(self):
-        yield self.service.del_doc(self.service_id)
+    def tearDownClass(cls):
+        yield cls.service.del_doc(cls.service_id)
+
+    @gen_test(timeout=5)
+    def test_1_service_post(self):
+        """ POST /api/v1/service/service_id """
+        response = yield self.http_client.fetch(
+            self.get_url('/api/v1/service/{0}'.format(self.service_id)),
+            method="POST",
+            body=json_encode({"test": 123})
+        )
+        r = json_decode(response.body)
+        self.assertEqual(r['ok'], True)
+
 
     @gen_test(timeout=3)
     def test_service_list(self):
@@ -71,17 +73,7 @@ class TestServiceHandlers(AsyncHTTPTestCase):
         r = json_decode(response.body)
         self.assertEqual(r['_id'], self.service_id)
 
-    @gen_test(timeout=5)
-    def test_service_post(self):
-        """ POST /api/v1/service/service_id """
-        # yield self.service.add_service(self.service_id, {"type": "service"})
-        response = yield self.http_client.fetch(
-            self.get_url('/api/v1/service/{0}'.format(self.service_id)),
-            method="POST",
-            body=json_encode({"test": 123})
-        )
-        r = json_decode(response.body)
-        self.assertEqual(r['ok'], True)
+
 
     @gen_test(timeout=5)
     def test_service_put(self):

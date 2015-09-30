@@ -12,10 +12,14 @@ from cmdb.orm import Service, Project
 
 
 def parse_args(tornado_arguments):
-    _dict = {}
+    body = {}
     for k, v in tornado_arguments.items():
-        _dict[k] = json_decode(v[0])
-    return _dict
+        v = v[0]
+        if ''.startswith('[') and ''.endswith(']'):
+            body[k] = json_decode(v)
+        else:
+            body[k] = v
+    return body
 
 
 class BaseHandler(RequestHandler):

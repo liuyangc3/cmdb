@@ -102,6 +102,11 @@ class TestService(AsyncTestCase):
 
     def test_check_ip(self):
         self.assertEqual(self.service.check_ip(self.ip), True)
+        self.assertRaises(
+            ValueError,
+            self.service.check_ip,
+            "111.222.333.444"
+        )
 
     def test_check_field(self):
         ip = {"ip": self.ip}
