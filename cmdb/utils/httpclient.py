@@ -47,8 +47,16 @@ class CouchAsyncHTTPClient(object):
 
     @gen.coroutine
     def delete(self, uri, rev):
-        uri += "?rev={0}".format(rev)
-        resp = yield self._fetch(
-            self.make_request(uri, "DELETE")
+        # url_escape turn '=' into '%3F'
+        # '%3F' not work in couchdb
+        req = HTTPRequest(
+            url="{0}/{1}?rev={2}".format(
+                self.url,
+                url_escape(uri),
+                rev
+            ),
+            method="DELETE",
+            headers={'Content-Type': 'application/json'}
         )
+        resp = yield self._fetch(req)
         raise gen.Return(resp)

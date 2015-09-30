@@ -2,8 +2,6 @@
 # -*- coding:utf-8 -*-
 
 from __future__ import unicode_literals
-import re
-
 from tornado import gen
 from tornado import ioloop
 from tornado.httpclient import HTTPClient
@@ -25,7 +23,7 @@ class Document(dict):
 
 class CouchBase(object):
     def __init__(self, url, io_loop=None):
-        self.url = url if url.endswith('/') else url + '/'
+        self.url = url
         self.io_loop = io_loop or ioloop.IOLoop.instance()
         try:
             HTTPClient().fetch(self.url)
@@ -52,9 +50,12 @@ class CouchBase(object):
 
     @gen.coroutine
     def get_doc(self, doc_id):
-        resp = yield self.client.get(doc_id)
-        _dict = json_decode(resp.body)
-        raise gen.Return(Document(_dict))
+        try:
+            resp = yield self.client.get(doc_id)
+            _dict = json_decode(resp.body)
+            raise gen.Return(Document(_dict))
+        except HTTPError:
+            raise ValueError('Document {0} not Exist'.format(doc_id))
 
     @gen.coroutine
     def has_doc(self, doc_id):
@@ -65,7 +66,23 @@ class CouchBase(object):
             raise gen.Return(False)
 
     @gen.coroutine
-    def update_doc(self, doc_id, doc):
+    def get_doc_rev(self, doc_id):
+        try:
+            resp = yield self.client.head(doc_id)
+            raise gen.Return(resp.headers['Etag'].strip('"'))
+        except HTTPError:
+            raise ValueError("Document {0} not Exist".format(doc_id))
+
+    @gen.coroutine
+    def _update_doc(self, doc_id, doc):
+        resp = yield self.client.put(doc_id, doc)
+        raise gen.Return(resp.body.decode('utf-8'))
+
+    @gen.coroutine
+    def _update_doc_field(self, doc_id, **field):
+        doc = yield self.get_doc(doc_id)
+        for k, v in field.items():
+            doc[k] = v
         resp = yield self.client.put(doc_id, doc)
         raise gen.Return(resp.body.decode('utf-8'))
 
@@ -75,32 +92,33 @@ class CouchBase(object):
         resp = yield self.client.delete(doc_id, rev)
         raise gen.Return(resp.code == 200)
 
-    @gen.coroutine
-    def get_doc_rev(self, doc_id):
-        exist = yield self.has_doc(doc_id)
-        if exist:
-            resp = yield self.client.head(doc_id)
-            raise gen.Return(resp.headers['Etag'].strip('"'))
-        raise gen.Return(None)
-
 
 class Service(CouchBase):
     def __init__(self, url=couch['url'], io_loop=None):
         super(Service, self).__init__(url, io_loop)
 
-    @gen.coroutine
-    def list_service_id(self):
-        res = []
-        _ids = yield self.list_ids()
-        for _id in _ids:
-            if re.match(r'\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}:\d{1,5}', _id):
-                res.append(_id)
-        raise gen.Return(res)
+    @staticmethod
+    def check_ip(ip_address):
+        pieces = ip_address.split('.')
+        if 4 == len(pieces):
+            if all(0 <= int(i) < 256 for i in pieces):
+                return True
+        raise ValueError('Invalid ip address {0}'.format(ip_address))
+
+    @staticmethod
+    def check_field(request_body):
+        for field in ('ip', 'port', 'type'):
+            if field in request_body:
+                raise ValueError('Can not Change Document Field {0}'.format(field))
 
     @gen.coroutine
-    def _add_service(self, service_id, _dict):
-        ip, port = service_id.split(':')
-        _dict.update({"_id": service_id, "ip": ip, "port": port})
+    def _add_service(self, ip, port, _dict):
+        service_id = "{0}:{1}".format(ip, port)
+        _dict.update({
+            "_id": service_id,
+            "ip": ip,
+            "port": port
+        })
         resp = yield self.client.put(service_id, _dict)
         raise gen.Return(resp.body)
 
@@ -109,15 +127,23 @@ class Service(CouchBase):
         exist = yield self.has_doc(service_id)
         if exist:
             raise KeyError('service id exist')
-        else:
-            port = service_id.split(':')[1]
-            try:
-                if "name" not in _dict:
-                    _dict.update({"name": service_map[port]})
-                resp = yield self._add_service(service_id, _dict)
-                raise gen.Return(resp)
-            except KeyError:
-                raise ValueError('not found name in url argument')
+        ip, port = service_id.split(':')
+        self.check_ip(ip)
+        try:
+            if "name" not in _dict:
+                _dict.update({"name": service_map[port]})
+            resp = yield self._add_service(ip, port, _dict)
+            raise gen.Return(resp)
+        except KeyError:
+            raise ValueError('not found name in url argument')
+
+    @gen.coroutine
+    def update_service(self, service_id, request_body):
+        doc = yield self.get_doc(service_id)
+        self.check_field(request_body)
+        doc.update(request_body)
+        resp = yield self._update_doc(service_id, doc)
+        raise gen.Return(resp)
 
 
 class Project(CouchBase):
@@ -125,23 +151,36 @@ class Project(CouchBase):
         super(Project, self).__init__(url, io_loop)
 
     @staticmethod
-    def check_service(_dict, doc):
-        if 'services' in _dict:
-            services = json_decode(_dict['services'])
-            if 'services' in doc:
-                services = list(set(services).union(set(doc['services'])))
-            _dict['services'] = services
-        doc.update(_dict)
+    def check_field(request_body):
+        if 'type' in request_body:
+            raise ValueError('Can not Change Document Field type')
+
+    @staticmethod
+    def _merge_services(request_body, doc):
+        SERVICES = 'services'
+        if SERVICES in request_body and SERVICES in doc:
+            x = set(request_body[SERVICES])
+            y = set(doc[SERVICES])
+            if x & y:
+                request_body[SERVICES] = list(x | y)
+        doc.update(request_body)
         return doc
 
     @gen.coroutine
-    def add_project(self, project_id, _dict):
+    def add_project(self, project_id, request_body):
         exist = yield self.has_doc(project_id)
         if exist:
             raise KeyError('Project exist')
         else:
-            _dict.update({"_id": project_id})
-            resp = yield self.update_doc(project_id, _dict)
+            request_body.update({"_id": project_id})
+            resp = yield self._update_doc(project_id, request_body)
             raise gen.Return(resp)
 
+    @gen.coroutine
+    def update_project(self, project_id, request_body):
+        doc = yield self.get_doc(project_id)
+        self.check_field(request_body)
+        doc = self._merge_services(request_body, doc)
+        resp = yield self._update_doc(project_id, doc)
+        raise gen.Return(resp)
 

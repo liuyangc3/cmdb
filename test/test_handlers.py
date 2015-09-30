@@ -10,12 +10,12 @@ from tornado.concurrent import Future
 from tornado.testing import AsyncHTTPTestCase
 from tornado.testing import gen_test
 
-from cmdb.orm_couch import Service, Project
+from cmdb.orm import Service, Project
 
 
 class TestApplication(web.Application):
     def __init__(self):
-        from cmdb.url import handlers
+        from cmdb.route import handlers
         settings = dict(debug=True)
         super(TestApplication, self).__init__(handlers, **settings)
 
@@ -29,7 +29,6 @@ class TestServiceHandlers(AsyncHTTPTestCase):
         self.service_id = '111.222.333.444:8080'
         self.f = Future()
         self.service = Service()
-        self.service.set_db('cmdb')
         # self.service_id_not_default_port = '172.16.200.999:9090'
         # self.ids = r'["172.16.200.105:8080"]'
 
@@ -151,12 +150,11 @@ class TestProjectHandlers(AsyncHTTPTestCase):
     def get_app(self):
         return TestApplication()
 
-    def setUp(self):
+    def setUpClass(self):
         super(TestProjectHandlers, self).setUp()
         self.project_id = '测试项目'
         self.project_id_es = url_escape(self.project_id)
         self.project = Project()
-        self.project.set_db('cmdb')
 
     def get_new_ioloop(self):
         return IOLoop.instance()
