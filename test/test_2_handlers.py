@@ -2,33 +2,36 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-# from mock import patch
+import mock
+import cStringIO as StringIO
 from tornado import web
 from tornado.ioloop import IOLoop
-from tornado.escape import json_encode, json_decode, url_escape
 from tornado.concurrent import Future
+from tornado.httpclient import HTTPRequest, HTTPResponse, AsyncHTTPClient
+from tornado.escape import json_encode, json_decode, url_escape
 from tornado.testing import AsyncHTTPTestCase
 from tornado.testing import gen_test
 
-from cmdb.orm import Service, Project
+from cmdb.orm import CouchBase, Service
 
 
-class TestApplication(web.Application):
+class Application(web.Application):
     def __init__(self):
         from cmdb.route import router
         settings = dict(debug=True)
-        super(TestApplication, self).__init__(router, **settings)
+        super(Application, self).__init__(router, **settings)
 
 
-class TestServiceHandlers(AsyncHTTPTestCase):
+class TestServiceRegexpHanlder(AsyncHTTPTestCase):
     def get_app(self):
-        return TestApplication()
+        return Application()
 
     def setUp(self):
-        super(TestServiceHandlers, self).setUp()
+        super(TestServiceRegexpHanlder, self).setUp()
         self.service_id = '1.1.1.1:8080'
-        self.f = Future()
+        self.future = Future()
         self.service = Service(io_loop=self.io_loop)
+        self.response = {'ok': True, 'rev': 'something'}
 
     def get_new_ioloop(self):
         # AsyncHTTPTestCase creates its own local IOLoop
@@ -36,68 +39,66 @@ class TestServiceHandlers(AsyncHTTPTestCase):
         # https://github.com/tornadoweb/tornado/issues/663
         return IOLoop.instance()
 
-    @gen_test(timeout=3)
-    def tearDownClass(cls):
-        yield cls.service.del_doc(cls.service_id)
-
+    @mock.patch.object(Service, 'add_service')
     @gen_test(timeout=5)
-    def test_1_service_post(self):
+    def test_1_post_request(self, mock_add_service):
         """ POST /api/v1/service/service_id """
+        self.future.set_result(self.response)
+        mock_add_service.return_value = self.future
         response = yield self.http_client.fetch(
-            self.get_url('/api/v1/service/{0}'.format(self.service_id)),
+            self.get_url('/api/v1/service/{0}'
+                         .format(self.service_id)),
             method="POST",
             body=json_encode({"test": 123})
         )
         r = json_decode(response.body)
         self.assertEqual(r['ok'], True)
 
-
+    @mock.patch.object(CouchBase, 'get_doc')
     @gen_test(timeout=3)
-    def test_service_list(self):
-        yield self.service.add_service(self.service_id, {"type": "service"})
+    def test_2_get_request(self, mock_get_doc):
+        self.future.set_result(self.response)
+        mock_get_doc.return_value = self.future
         response = yield self.http_client.fetch(
-            self.get_url('/api/v1/service/_list'),
+            self.get_url('/api/v1/service/{0}'
+                         .format(self.service_id)),
             method="GET"
         )
         r = json_decode(response.body)
         self.assertEqual(r, [self.service_id])
 
-    @gen_test(timeout=3)
-    def test_service_get(self):
-        """ GET /api/v1/service/service_id """
-        yield self.service.add_service(self.service_id, {"type": "service"})
-        response = yield self.http_client.fetch(
-            self.get_url('/api/v1/service/{0}'.format(self.service_id)),
-            method="GET"
-        )
-        r = json_decode(response.body)
-        self.assertEqual(r['_id'], self.service_id)
-
-
-
+    @mock.patch.object(Service, 'update_service')
     @gen_test(timeout=5)
-    def test_service_put(self):
+    def test_3_put_request(self, mock_update_service):
         """ PUT /service/service_id """
-        yield self.service.add_service(self.service_id, {"type": "service"})
+        self.future.set_result('{"ok":true}')
+        mock_update_service.return_value = self.future
+        boundary ='----WebKitFormBoundaryoQWBjMBGzd12uIWA'
         response = yield self.http_client.fetch(
             self.get_url('/api/v1/service/{0}'.format(self.service_id)),
             method="PUT",
-            body=json_encode({"test": 123})
+            headers={'Content-Type': 'multipart/form-data; boundary={0}'.format(boundary)},
+            body='--{0}\r\nContent-Disposition: form-data; name="test"\r\n\r\n'
+                 'whatever\r\n'
+                 '--{0}--\r\n'.format(boundary)
         )
-        r = json_decode(response.body)
-        self.assertEqual(r['ok'], True)
+        self.assertEqual(response.body, '{"ok":true}')
+        print(response.body)
 
+    @gen_test(timeout=3)
+    def test_3_put_request_no_body(self):
+        """ PUT /service/service_id """
         response = yield self.http_client.fetch(
             self.get_url('/api/v1/service/{0}'.format(self.service_id)),
             method="PUT",
-            body=""
+            body=''
         )
         r = json_decode(response.body)
         self.assertEqual(r['ok'], False)
-        self.assertEqual(r['msg'], "Request body is empty")
+        self.assertEqual(r['msg'], 'Request body is empty')
 
     @gen_test(timeout=5)
-    def test_service_delete_field(self):
+    def test_4_delete_service(self):
         """ DELETE /service/service_id """
         yield self.service.add_service(self.service_id, {"type": "service", "delete": 1})
         response = yield self.http_client.fetch(
@@ -140,7 +141,7 @@ class TestServiceHandlers(AsyncHTTPTestCase):
 
 class TestProjectHandlers(AsyncHTTPTestCase):
     def get_app(self):
-        return TestApplication()
+        return Application()
 
     def setUpClass(self):
         super(TestProjectHandlers, self).setUp()
@@ -220,3 +221,15 @@ class TestProjectHandlers(AsyncHTTPTestCase):
         )
         response = yield self.project.get_doc(self.project_id)
         self.assertEqual(response['services'], ["222:8081", "111:8080", "333:8082"])
+
+
+def setup_fetch(mock_fetch, status_code, body=None):
+    def side_effect(request, **kwargs):
+        if request is not HTTPRequest:
+            request = HTTPRequest(request)
+        _buffer = StringIO.StringIO(body)
+        response = HTTPResponse(request, status_code, None, _buffer)
+        future = Future()
+        future.set_result(response)
+        return future
+    mock_fetch.side_effect = side_effect

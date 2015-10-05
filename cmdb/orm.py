@@ -139,8 +139,8 @@ class Service(CouchBase):
 
     @gen.coroutine
     def update_service(self, service_id, request_body):
-        doc = yield self.get_doc(service_id)
         self.check_field(request_body)
+        doc = yield self.get_doc(service_id)
         doc.update(request_body)
         resp = yield self._update_doc(service_id, doc)
         raise gen.Return(resp)

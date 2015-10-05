@@ -63,16 +63,12 @@ class ServiceRegexpHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def put(self, service_id):
-        try:
-            doc = yield self.service.get_doc(service_id)
-            if self.request.body != '':
-                doc.update(parse_args(self.request.body_arguments))
-                resp = yield self.service._update_doc(service_id, doc)
-                self.write(resp)
-            else:
-                self.write('{"ok": false, "msg": "Request body is empty"}')
-        except HTTPError:
-            self.write('{"ok": false, "msg": "Service Not Found"}')
+        if self.request.body:
+            request_body = parse_args(self.request.body_arguments)
+            resp = yield self.service.update_service(service_id, request_body)
+            self.write(resp)
+        else:
+            self.write('{"ok": false, "msg": "Request body is empty"}')
         self.finish()
 
     @asynchronous
