@@ -95,6 +95,7 @@ class TestService(AsyncTestCase):
         cls.ip = "1.1.1.1"
         cls.service_id_with_default_port = '1.1.1.1:8080'
         cls.service_id_not_default_port = '1.1.1.1:9999'
+        cls.not_allowed_field = ['ip', 'port', 'type']
 
     def setUp(self):
         super(TestService, self).setUp()  # setup io_loop
@@ -117,7 +118,23 @@ class TestService(AsyncTestCase):
         self.assertRaises(ValueError, self.service.check_field, _type)
 
     @gen_test(timeout=3)
-    def test_1_add_service_not_set_name(self):
+    def test_11_add_default_port_service(self):
+        response = yield self.service.add_service(
+            self.service_id_with_default_port, {"type": "service"}
+        )
+        r = json_decode(response)
+        self.assertEqual(r["ok"], True)
+
+    @gen_test(timeout=3)
+    def test_12_add_non_default_port_service_with_name_field(self):
+        response = yield self.service.add_service(
+            self.service_id_not_default_port, {"type": "service", "name": "test"}
+        )
+        r = json_decode(response)
+        self.assertEqual(r["ok"], True)
+
+    @gen_test(timeout=3)
+    def test_13_add_non_default_port_service_without_name_field(self):
         try:
             yield self.service.add_service(
                 self.service_id_not_default_port,
@@ -125,25 +142,10 @@ class TestService(AsyncTestCase):
             )
         except Exception as e:
             self.assertIsInstance(e, ValueError)
+            self.assertEqual(e.message, 'Unrecognized port,Must specify the name field in the body')
 
     @gen_test(timeout=3)
-    def test_2_add_service_with_default_port(self):
-        response = yield self.service.add_service(
-            self.service_id_with_default_port, {"type": "service"}
-        )
-        r = json_decode(response)
-        self.assertEqual(True, r["ok"])
-
-    @gen_test(timeout=3)
-    def test_3_add_service_not_with_default_port(self):
-        response = yield self.service.add_service(
-            self.service_id_not_default_port, {"type": "service", "name": "test"}
-        )
-        r = json_decode(response)
-        self.assertEqual(True, r["ok"])
-
-    @gen_test(timeout=3)
-    def test_4_add_service_again(self):
+    def test_14_add_service_which_exist(self):
         try:
             yield self.service.add_service(
                 self.service_id_with_default_port,
@@ -153,49 +155,69 @@ class TestService(AsyncTestCase):
             self.assertIsInstance(e, KeyError)
 
     @gen_test(timeout=3)
-    def test_5_update_service_type_field(self):
-        try:
-            yield self.service.update_service(
-                self.service_id_with_default_port,
-                {"type": "this change should not allowed"}
-            )
-        except Exception as e:
-            self.assertIsInstance(e, ValueError)
-            self.assertEquals(e.message, 'Can not Change Document Field type')
+    def test_21_update_service_not_allowed_field(self):
+        for field in self.not_allowed_field:
+            try:
+                yield self.service.update_service(
+                    self.service_id_with_default_port,
+                    {field: "this change should not allowed"}
+                )
+            except Exception as e:
+                self.assertIsInstance(e, ValueError)
+                self.assertEqual(
+                    e.message,
+                    'Can not Change Document Field {0}'.format(field)
+                )
 
     @gen_test(timeout=3)
-    def test_6_update_service_ip_field(self):
-        try:
-            yield self.service.update_service(
-                self.service_id_with_default_port,
-                {"ip": "this change should not allowed"}
-            )
-        except Exception as e:
-            self.assertIsInstance(e, ValueError)
-            self.assertEquals(e.message, 'Can not Change Document Field ip')
-
-    @gen_test(timeout=3)
-    def test_7_update_service_ip_field(self):
-        try:
-            yield self.service.update_service(
-                self.service_id_with_default_port,
-                {"port": "this change should not allowed"}
-            )
-        except Exception as e:
-            self.assertIsInstance(e, ValueError)
-            self.assertEquals(e.message, 'Can not Change Document Field port')
-
-    @gen_test(timeout=3)
-    def test_8_update_service_other_field(self):
+    def test_22_update_service_allowed_field(self):
         resp = yield self.service.update_service(
             self.service_id_with_default_port,
-            {"else": "this change is allowed"}
+            {"whatever": "this change is allowed"}
         )
         r = json_decode(resp)
-        self.assertEquals(r['ok'], True)
+        self.assertEqual(r['ok'], True)
 
     @gen_test(timeout=3)
-    def test_9_clean(self):
+    def test_31_delete_service_not_allowed_field(self):
+        for field in self.not_allowed_field:
+            try:
+                yield self.service.delete_service_field(
+                    self.service_id_with_default_port,
+                    [field]
+                )
+            except Exception as e:
+                self.assertIsInstance(e, ValueError)
+                self.assertEquals(
+                    e.message,
+                    'Can not Change Document Field {0}'.format(field)
+                )
+
+    @gen_test(timeout=3)
+    def test_32_delete_service_allowed_field(self):
+        response = yield self.service.delete_service_field(
+            self.service_id_with_default_port,
+            ['whatever']
+        )
+        r = json_decode(response)
+        self.assertEqual(r['ok'], True)
+
+    @gen_test(timeout=3)
+    def test_33_delete_service_field_not_exist(self):
+        try:
+            yield self.service.delete_service_field(
+                self.service_id_with_default_port,
+                ['not exist']
+            )
+        except Exception as e:
+            self.assertIsInstance(e, KeyError)
+            self.assertEqual(
+                e.message,
+                "Field not exist Not In Service {0}".format(self.service_id_with_default_port)
+            )
+
+    @gen_test(timeout=3)
+    def test_99_end_tear_down_class(self):
         yield self.service.del_doc(self.service_id_with_default_port)
         yield self.service.del_doc(self.service_id_not_default_port)
 
