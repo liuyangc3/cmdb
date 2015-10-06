@@ -70,7 +70,11 @@ class TestCouchBase(AsyncTestCase):
 
     @gen_test(timeout=3)
     def test_7_update_doc_field(self):
-        response = yield self.couch._update_doc_field(self.service_id, ip="1.2.3.4", port=4567)
+        response = yield self.couch._update_doc_field(
+            self.service_id,
+            ip="1.2.3.4",
+            port=4567
+        )
         r = json_decode(response)
         self.assertEqual(r['ok'], True)
         doc = yield self.couch.get_doc(self.service_id)
@@ -80,13 +84,18 @@ class TestCouchBase(AsyncTestCase):
     @gen_test(timeout=3)
     def test_8_del_doc(self):
         response = yield self.couch.del_doc(self.service_id)
-        self.assertEqual(response, True)
+        self.assertEqual(response, 'true')
+
+    @gen_test(timeout=3)
+    def test_9_del_doc_not_exist(self):
         try:
             yield self.couch.del_doc(self.service_id)
         except Exception as e:
             self.assertIsInstance(e, ValueError)
-            self.assertEqual(e.message,
-                             'Document {0} not Exist'.format(self.service_id))
+            self.assertEqual(
+                e.message,
+                'Document {0} not Exist'.format(self.service_id)
+            )
 
 
 class TestService(AsyncTestCase):
