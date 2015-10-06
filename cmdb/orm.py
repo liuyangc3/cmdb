@@ -90,7 +90,8 @@ class CouchBase(object):
     def del_doc(self, doc_id):
         rev = yield self.get_doc_rev(doc_id)
         resp = yield self.client.delete(doc_id, rev)
-        raise gen.Return(resp.code == 200)
+        # json_decode can not decode "True" but "true"
+        raise gen.Return("true" if resp.code == 200 else "false")
 
 
 class Service(CouchBase):

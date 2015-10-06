@@ -11,7 +11,7 @@ from tornado.escape import json_encode, json_decode, url_escape
 from tornado.testing import AsyncHTTPTestCase
 from tornado.testing import gen_test
 
-from cmdb.orm import Service
+from cmdb.orm import Service, Project
 
 
 class Application(web.Application):
@@ -53,7 +53,7 @@ class TestServiceRegexpHanlder(AsyncHTTPTestCase):
         return req
 
     @gen_test(timeout=5)
-    def test_1_post_request_not_default_port(self):
+    def test_11_post_request_not_default_port(self):
         """ POST /api/v1/service/service_id """
         req = self.form_data_request(
             self.get_url('/api/v1/service/10.10.10.1:9874'),
@@ -68,7 +68,7 @@ class TestServiceRegexpHanlder(AsyncHTTPTestCase):
             )
 
     @gen_test(timeout=5)
-    def test_2_post_request_default_port(self):
+    def test_12_post_request_default_port(self):
         """ POST /api/v1/service/service_id """
         req = self.form_data_request(
             self.get_url('/api/v1/service/{0}'.format(self.service_id)),
@@ -80,19 +80,22 @@ class TestServiceRegexpHanlder(AsyncHTTPTestCase):
         self.assertEqual(r['ok'], True)
 
     @gen_test(timeout=5)
-    def test_2_post_request_service_exist(self):
+    def test_13_post_request_service_exist(self):
         """ POST /api/v1/service/service_id """
         req = self.form_data_request(
             self.get_url('/api/v1/service/{0}'.format(self.service_id)),
             method="POST"
         )
-        response = yield self.http_client.fetch(req)
-        r = json_decode(response.body)
-        self.assertEqual(r['ok'], False)
-        self.assertEqual(r['msg'], 'Service id exist')
+        try:
+            yield self.http_client.fetch(req)
+        except HTTPError as e:
+            self.assertEqual(
+                e.message,
+                'HTTP 500: Service id exist'
+            )
 
     @gen_test(timeout=3)
-    def test_3_get_request(self):
+    def test_2_get_request(self):
         response = yield self.http_client.fetch(
             self.get_url('/api/v1/service/{0}'
                          .format(self.service_id)),
@@ -103,7 +106,7 @@ class TestServiceRegexpHanlder(AsyncHTTPTestCase):
         self.assertEqual(r['name'], "tomcat")
 
     @gen_test(timeout=3)
-    def test_4_put_request_no_body(self):
+    def test_31_put_request_no_body(self):
         try:
             yield self.http_client.fetch(
                 self.get_url('/api/v1/service/{0}'.format(self.service_id)),
@@ -117,7 +120,7 @@ class TestServiceRegexpHanlder(AsyncHTTPTestCase):
             )
 
     @gen_test(timeout=5)
-    def test_4_put_request_change_not_allowed_field(self):
+    def test_32_put_request_change_not_allowed_field(self):
         for field in self.not_allowed_fields:
             kw = {field: 'whatever'}
             req = self.form_data_request(
@@ -134,44 +137,36 @@ class TestServiceRegexpHanlder(AsyncHTTPTestCase):
                 )
 
     @gen_test(timeout=5)
-    def test_5_delete_service_field(self):
-        """ DELETE /service/service_id """
-        response = yield self.http_client.fetch(
-            self.get_url('/api/v1/service/{0}?field=delete'.format(self.service_id)),
-            method="DELETE"
-        )
-        r = json_decode(response.body)
-        self.assertEqual(r['ok'], True)
-
-        response = yield self.http_client.fetch(
-            self.get_url('/api/v1/service/{0}?field=not_exist'.format(self.service_id)),
-            method="DELETE"
-        )
-        r = json_decode(response.body)
-        self.assertEqual(r['ok'], False)
-        self.assertEqual(r['msg'], "fields [u'not_exist'] Not Found")
+    def test_41_delete_service_field_not_exist(self):
+        try:
+            yield self.http_client.fetch(
+                self.get_url('/api/v1/service/{0}?field=not_exist'.format(self.service_id)),
+                method="DELETE"
+            )
+        except HTTPError as e:
+            self.assertEqual(
+                e.message,
+                'HTTP 500: Field not_exist Not In Service {0}'.format(self.service_id)
+            )
 
     @gen_test(timeout=5)
-    def test_service_delete_all(self):
-        yield self.service.add_service(self.service_id, {"type": "service", "delete": 1})
+    def test_42_service_delete_field(self):
         response = yield self.http_client.fetch(
-            self.get_url('/api/v1/service/{0}?all'.format(self.service_id)),
+            self.get_url('/api/v1/service/{0}?field=field'.format(self.service_id)),
             method="DELETE"
         )
         r = json_decode(response.body)
         self.assertEqual(r['ok'], True)
-        self.assertEqual(r['msg'], "Service deleted")
 
+    @gen_test(timeout=5)
+    def test_43_service_delete(self):
+        # delete all service
         response = yield self.http_client.fetch(
-            self.get_url('/api/v1/service/{0}?all'.format(self.service_id)),
+            self.get_url('/api/v1/service/{0}'.format(self.service_id)),
             method="DELETE"
         )
         r = json_decode(response.body)
-        self.assertEqual(r['ok'], False)
-        self.assertEqual(r['msg'], "Service Not Found")
-
-        # against teardown
-        yield self.service.add_service(self.service_id, {"type": "service", "delete": 1})
+        self.assertEqual(r["ok"], True)
 
 
 class TestProjectHandlers(AsyncHTTPTestCase):

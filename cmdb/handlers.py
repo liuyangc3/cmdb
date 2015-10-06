@@ -87,10 +87,11 @@ class ServiceRegexpHanlder(BaseHandler):
                 resp = yield self.service.delete_service_field(service_id, fields)
                 self.write(resp)
             except Exception as e:
+                self.set_status(500, reason=e.message)
                 self.write(err_message(e))
         else:
             resp = yield self.service.del_doc(service_id)
-            self.write(resp)
+            self.write('{{"ok": {0}}}'.format(resp))
         self.finish()
 
 
