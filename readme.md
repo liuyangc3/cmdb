@@ -27,3 +27,18 @@ curl -X DELETE http://127.0.0.1:8005/api/v1/service/1.1.1.1:8080field=f1
 ```
 curl -X DELETE 'http://127.0.0.1:8005/api/v1/service/1.1.1.1:8080?field=f1&field=f2
 ```
+
+# 项目api
+/api/v1/project/<project id>
+
+## 查看
+
+## 添加项目
+```
+curl -X POST http://localhost:8005/api/v1/project/测试项目 -d 'name=hello'
+```
+
+## 为项目添加服务
+
+## 更新
+

@@ -99,8 +99,8 @@ class ProjectHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, project_id):
-        resp = yield self.project.list_ids()
-        self.write(json_encode(resp))
+        # :TODO
+        pass
 
     @asynchronous
     @gen.coroutine
@@ -124,8 +124,7 @@ class ProjectHandler(BaseHandler):
                 resp = yield self.project.update_project(project_id, request_body)
                 self.write(resp)
             except Exception as e:
-                self.set_status(500, reason=e.message)
-                self.write(err_message(e))
+                self.err_write(500, e)
         else:
             self.err_write(500, "Request body is empty")
         self.finish()
