@@ -112,36 +112,47 @@ class Service(CouchBase):
                 raise ValueError('Can not Change Document Field {0}'.format(field))
 
     @gen.coroutine
-    def _add_service(self, ip, port, _dict):
+    def _add_service(self, ip, port, request_body):
         service_id = "{0}:{1}".format(ip, port)
-        _dict.update({
+        request_body.update({
             "_id": service_id,
             "ip": ip,
             "port": port
         })
-        resp = yield self.client.put(service_id, _dict)
+        resp = yield self.client.put(service_id, request_body)
         raise gen.Return(resp.body)
 
     @gen.coroutine
-    def add_service(self, service_id, _dict):
-        exist = yield self.has_doc(service_id)
-        if exist:
-            raise KeyError('service id exist')
+    def add_service(self, service_id, request_body):
         ip, port = service_id.split(':')
         self.check_ip(ip)
-        try:
-            if "name" not in _dict:
-                _dict.update({"name": service_map[port]})
-            resp = yield self._add_service(ip, port, _dict)
-            raise gen.Return(resp)
-        except KeyError:
-            raise ValueError('not found name in url argument')
+        if "name" not in request_body:
+            if port not in service_map:
+                raise ValueError('Unrecognized port,Must specify'
+                                 ' the name field in the body')
+            request_body["name"] = service_map[port]
+        exist = yield self.has_doc(service_id)
+        if exist:
+            raise KeyError('Service id exist')
+        resp = yield self._add_service(ip, port, request_body)
+        raise gen.Return(resp)
 
     @gen.coroutine
     def update_service(self, service_id, request_body):
         self.check_field(request_body)
         doc = yield self.get_doc(service_id)
         doc.update(request_body)
+        resp = yield self._update_doc(service_id, doc)
+        raise gen.Return(resp)
+
+    @gen.coroutine
+    def delete_service_field(self, service_id, fields):
+        self.check_field(fields)
+        doc = yield self.get_doc(service_id)
+        for field in fields:
+            if field not in doc:
+                raise KeyError('Field {0} Not In Service {1}'.format(field, service_id))
+            del doc[field]
         resp = yield self._update_doc(service_id, doc)
         raise gen.Return(resp)
 

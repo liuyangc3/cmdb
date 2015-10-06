@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-
 from tornado.web import RequestHandler, asynchronous
-from tornado.httpclient import HTTPError
 from tornado.escape import json_encode, json_decode
 from tornado import gen
 
@@ -20,6 +18,10 @@ def parse_args(tornado_arguments):
         else:
             body[k] = v
     return body
+
+
+def err_message(e):
+    return '{{"ok": false, "msg": "{0}"}}'.format(e.message)
 
 
 class BaseHandler(RequestHandler):
@@ -49,15 +51,15 @@ class ServiceRegexpHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def post(self, service_id):
-        _dict = self.service_dict.copy()
-        if self.request.body != '':
-            _dict.update(parse_args(self.request.body_arguments))
+        request_body = self.service_dict.copy()
+        if self.request.body:
+            request_body.update(parse_args(self.request.body_arguments))
         try:
-            resp = yield self.service.add_service(service_id, _dict)
+            resp = yield self.service.add_service(service_id, request_body)
             self.write(resp)
-        except ValueError as e:
-            self.set_status(401)
-            self.write('{{"ok": false, "msg": "{0}"}}'.format(e.message))
+        except Exception as e:
+            self.set_status(500, reason=e.message)
+            self.write(err_message(e))
         self.finish()
 
     @asynchronous
@@ -65,17 +67,30 @@ class ServiceRegexpHanlder(BaseHandler):
     def put(self, service_id):
         if self.request.body:
             request_body = parse_args(self.request.body_arguments)
-            resp = yield self.service.update_service(service_id, request_body)
-            self.write(resp)
+            try:
+                resp = yield self.service.update_service(service_id, request_body)
+                self.write(resp)
+            except Exception as e:
+                self.set_status(500, reason=e.message)
+                self.write(err_message(e))
         else:
+            self.set_status(500, reason="Request body is empty")
             self.write('{"ok": false, "msg": "Request body is empty"}')
         self.finish()
 
     @asynchronous
     @gen.coroutine
     def delete(self, service_id):
-        resp = yield self.service.del_doc(service_id)
-        self.write(resp)
+        fields = self.get_arguments("field")
+        if fields:
+            try:
+                resp = yield self.service.delete_service_field(service_id, fields)
+                self.write(resp)
+            except Exception as e:
+                self.write(err_message(e))
+        else:
+            resp = yield self.service.del_doc(service_id)
+            self.write(resp)
         self.finish()
 
 
@@ -96,7 +111,7 @@ class ProjectHandler(BaseHandler):
             resp = yield self.project.add_project(project_id, request_body)
             self.write(resp)
         except KeyError as e:
-            self.write('{{"ok": false, "msg": "{0}"}}'.format(e.message))
+            self.write(err_message(e))
         self.finish()
 
     @asynchronous
