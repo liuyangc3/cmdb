@@ -8,7 +8,7 @@ test
 ```
 curl http://localhost:5984/cmdb/_design/service/_view/list
 curl http://localhost:5984/cmdb/_design/service/_list/get_service/list?name=tomcat
-curl http://localhost:5984/cmdb/_design/project/_view/list
+curl http://localhost:5984/cmdb/_design/project/_view/list?group=true
 ```
 
 
