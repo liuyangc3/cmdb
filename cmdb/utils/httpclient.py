@@ -18,7 +18,10 @@ class CouchAsyncHTTPClient(object):
 
     def make_request(self, uri, method, doc=None):
         return HTTPRequest(
-            url="{0}/{1}".format(self.url, url_escape(uri)),
+            # url="{0}/{1}".format(self.url, url_escape(uri)),
+            # if / in uri, will trun to %2F
+            # and that won't work in couchdb
+            url="{0}/{1}".format(self.url, uri),
             method=method,
             headers={'Content-Type': 'application/json'},
             body=json_encode(doc) if doc else None
