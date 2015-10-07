@@ -112,6 +112,15 @@ class Service(CouchBase):
             if field in request_body:
                 raise ValueError('Can not Change Document Field {0}'.format(field))
 
+
+    @gen.coroutine
+    def list(self):
+        resp = yield self.client.get('_design/service/_view/list')
+        services = []
+        for row in json_decode(resp.body)['rows']:
+            services.append(row['key'])
+        raise gen.Return(services)
+
     @gen.coroutine
     def _add_service(self, ip, port, request_body):
         service_id = "{0}:{1}".format(ip, port)
@@ -169,14 +178,30 @@ class Project(CouchBase):
 
     @staticmethod
     def _merge_services(request_body, doc):
-        SERVICES = 'services'
-        if SERVICES in request_body and SERVICES in doc:
-            x = set(request_body[SERVICES])
-            y = set(doc[SERVICES])
+        if 'services' in request_body and 'services' in doc:
+            # 取提交service 集合与文档service集合的并集
+            # 作为最终的service
+            x = set(request_body['services'])
+            y = set(doc['services'])
             if x & y:
-                request_body[SERVICES] = list(x | y)
+                request_body['services'] = list(x | y)
         doc.update(request_body)
         return doc
+
+    @gen.coroutine
+    def list(self):
+        resp = yield self.client.get('_design/project/_view/list?group=true')
+        raise gen.Return(resp.body)
+
+    @gen.coroutine
+    def get_project(self, project_id):
+        # 父类 get_doc 返回 dict 对象
+        # 这里无法使用 get_doc 取 project 信息
+        try:
+            resp = yield self.client.get(project_id)
+            raise gen.Return(resp.body)
+        except HTTPError:
+            raise ValueError('Document {0} not Exist'.format(project_id))
 
     @gen.coroutine
     def add_project(self, project_id, request_body):
@@ -195,15 +220,3 @@ class Project(CouchBase):
         doc = self._merge_services(request_body, doc)
         resp = yield self._update_doc(project_id, doc)
         raise gen.Return(resp)
-
-    @gen.coroutine
-    def add_service(self, project_id, request_body):
-        """
-        add service into project
-        """
-        doc = yield self.get_doc(project_id)
-        self.check_field(request_body)
-        doc = self._merge_services(request_body, doc)
-        resp = yield self._update_doc(project_id, doc)
-        raise gen.Return(resp)
-

@@ -13,7 +13,7 @@ def parse_args(tornado_arguments):
     body = {}
     for k, v in tornado_arguments.items():
         v = v[0]
-        if ''.startswith('[') and ''.endswith(']'):
+        if v.startswith('[') and v.endswith(']'):
             body[k] = json_decode(v)
         else:
             body[k] = v
@@ -36,7 +36,7 @@ class BaseHandler(RequestHandler):
             self.write('{{"ok": false, "msg": "{0}"}}'.format(e))
 
 
-class ServiceHanlder(BaseHandler):
+class ServicesHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self):
@@ -44,7 +44,7 @@ class ServiceHanlder(BaseHandler):
         pass
 
 
-class ServiceRegexpHanlder(BaseHandler):
+class ServiceHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, service_id):
@@ -95,12 +95,25 @@ class ServiceRegexpHanlder(BaseHandler):
         self.finish()
 
 
+class ProjectsHandler(BaseHandler):
+    @asynchronous
+    @gen.coroutine
+    def get(self):
+        resp = yield self.project.list()
+        self.write(resp)
+        self.finish()
+
+
 class ProjectHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, project_id):
-        # :TODO
-        pass
+        try:
+            resp = yield self.project.get_project(project_id)
+            self.write(resp)
+        except KeyError as e:
+            self.err_write(500, e)
+        self.finish()
 
     @asynchronous
     @gen.coroutine
@@ -120,6 +133,11 @@ class ProjectHandler(BaseHandler):
     def put(self, project_id):
         if self.request.body:
             request_body = parse_args(self.request.body_arguments)
+            if 'services' in request_body:
+                services = yield Service().list()
+                for service in request_body['services']:
+                    if service not in services:
+                        self.err_write(500, 'Service {0} not exist'.format(service))
             try:
                 resp = yield self.project.update_project(project_id, request_body)
                 self.write(resp)
