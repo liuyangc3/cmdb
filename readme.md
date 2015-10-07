@@ -11,6 +11,10 @@ curl http://localhost:5984/cmdb/_design/service/_list/get_service/list?name=tomc
 curl http://localhost:5984/cmdb/_design/project/_view/list?group=true
 ```
 
+# 加载前端项目
+```
+git clone https://gitcafe.com/hudson/cmdb-front.git
+```
 
 # 服务api
 /api/v1/service/<service id>
