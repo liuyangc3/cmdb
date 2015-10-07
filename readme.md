@@ -1,5 +1,17 @@
 /usr/local/Cellar/couchdb/1.6.1_3/bin/couchdb
 
+# init databases
+```
+./db.sh
+```
+test
+```
+curl http://localhost:5984/cmdb/_design/service/_view/list
+curl http://localhost:5984/cmdb/_design/service/_list/get_service/list?name=tomcat
+curl http://localhost:5984/cmdb/_design/project/_view/list
+```
+
+
 # 服务api
 /api/v1/service/<service id>
 ## 查看服务

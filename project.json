@@ -1,0 +1,11 @@
+{
+  "language":"javascript",
+  "views":
+  {
+    "list":
+    {
+      "map": "function(doc){if(doc.type==\"project\"){emit(doc._id)}}",
+      "reduce": "_count"
+    }
+  }
+}

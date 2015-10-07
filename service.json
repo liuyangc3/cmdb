@@ -1,0 +1,15 @@
+{
+  "language": "javascript",
+  "views":
+  {
+    "list":
+    {
+      "map":"function(doc) {if(doc.type==\"service\"){emit(doc._id,doc.name)}}"
+    }
+  },
+
+  "lists":
+  {
+    "get_service":"function(head,req) {var row,res=[];while(row=getRow()){if(req.query.name==row.value){res.push(row.key)}}send(JSON.stringify(res))}"
+  }
+}

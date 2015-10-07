@@ -79,10 +79,10 @@ class CouchBase(object):
         raise gen.Return(resp.body.decode('utf-8'))
 
     @gen.coroutine
-    def _update_doc_field(self, doc_id, **field):
+    def _update_doc_field(self, doc_id, **fields):
         doc = yield self.get_doc(doc_id)
-        for k, v in field.items():
-            doc[k] = v
+        for field, value in fields.items():
+            doc[field] = value
         resp = yield self.client.put(doc_id, doc)
         raise gen.Return(resp.body.decode('utf-8'))
 
@@ -190,6 +190,17 @@ class Project(CouchBase):
 
     @gen.coroutine
     def update_project(self, project_id, request_body):
+        doc = yield self.get_doc(project_id)
+        self.check_field(request_body)
+        doc = self._merge_services(request_body, doc)
+        resp = yield self._update_doc(project_id, doc)
+        raise gen.Return(resp)
+
+    @gen.coroutine
+    def add_service(self, project_id, request_body):
+        """
+        add service into project
+        """
         doc = yield self.get_doc(project_id)
         self.check_field(request_body)
         doc = self._merge_services(request_body, doc)
