@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
+from __future__ import unicode_literals  # make format use unicode
 from tornado import gen
 from tornado.httpclient import HTTPRequest
 from tornado.httpclient import AsyncHTTPClient
@@ -18,8 +19,8 @@ class CouchAsyncHTTPClient(object):
 
     def make_request(self, uri, method, doc=None):
         return HTTPRequest(
-            # url="{0}/{1}".format(self.url, url_escape(uri)),
-            # if / in uri, will trun to %2F
+            # fix url_escape(uri) to uri
+            # if / in uri, url_escape will turn it to %2F
             # and that won't work in couchdb
             url="{0}/{1}".format(self.url, uri),
             method=method,
