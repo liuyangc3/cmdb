@@ -345,10 +345,9 @@ class TestProject(AsyncTestCase):
 
     @gen_test(timeout=3)
     def test_6_list(self):
-        response = yield self.project.list()
-        r = json_decode(response)
-        for project in r['rows']:
-            self.assertEqual(project['key'], self.project_id)
+        projects = yield self.project.list()
+        for project in projects:
+            self.assertEqual(project, self.project_id)
 
     @gen_test(timeout=3)
     def test_8_clean(self):
@@ -356,6 +355,5 @@ class TestProject(AsyncTestCase):
 
     @gen_test(timeout=3)
     def test_9_list_empty(self):
-        response = yield self.project.list()
-        r = json_decode(response)
-        self.assertEqual(r['rows'], [])
+        projects = yield self.project.list()
+        self.assertEqual(projects, [])

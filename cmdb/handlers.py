@@ -36,6 +36,11 @@ class BaseHandler(RequestHandler):
             self.write('{{"ok": false, "msg": "{0}"}}'.format(e))
 
 
+class IndexHandler(RequestHandler):
+    def get(self):
+        self.render('index.html')
+
+
 class ServicesHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
@@ -100,7 +105,7 @@ class ProjectsHandler(BaseHandler):
     @gen.coroutine
     def get(self):
         resp = yield self.project.list()
-        self.write(resp)
+        self.write(json_encode(resp))
         self.finish()
 
 

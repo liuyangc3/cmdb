@@ -227,9 +227,9 @@ class TestProjectHandlers(AsyncHTTPTestCase):
             self.get_url('/api/v1/project/list'),
             method="GET"
         )
-        r = json_decode(response.body)
-        for project in r['rows']:
-            self.assertEqual(project['key'], self.project_id)
+        projects = json_decode(response.body)
+        for project in projects:
+            self.assertEqual(project, self.project_id)
 
     @gen_test(timeout=3)
     def test_22_project_get(self):

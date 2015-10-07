@@ -191,7 +191,11 @@ class Project(CouchBase):
     @gen.coroutine
     def list(self):
         resp = yield self.client.get('_design/project/_view/list?group=true')
-        raise gen.Return(resp.body)
+        r = json_decode(resp.body)
+        projects = []
+        for row in r['rows']:
+            projects.append(row['key'])
+        raise gen.Return(projects)
 
     @gen.coroutine
     def get_project(self, project_id):
