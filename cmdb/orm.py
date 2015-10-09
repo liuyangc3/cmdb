@@ -134,16 +134,17 @@ class Service(CouchBase):
 
     @gen.coroutine
     def add_service(self, service_id, request_body):
+        exist = yield self.has_doc(service_id)
+        if exist:
+            raise KeyError('Service id exist')
         ip, port = service_id.split(':')
         self.check_ip(ip)
+        print(request_body)
         if "name" not in request_body:
             if port not in service_map:
                 raise ValueError('Unrecognized port,Must specify'
                                  ' the name field in the body')
             request_body["name"] = service_map[port]
-        exist = yield self.has_doc(service_id)
-        if exist:
-            raise KeyError('Service id exist')
         resp = yield self._add_service(ip, port, request_body)
         raise gen.Return(resp)
 
