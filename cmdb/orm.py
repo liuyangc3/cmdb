@@ -139,7 +139,6 @@ class Service(CouchBase):
             raise KeyError('Service id exist')
         ip, port = service_id.split(':')
         self.check_ip(ip)
-        print(request_body)
         if "name" not in request_body:
             if port not in service_map:
                 raise ValueError('Unrecognized port,Must specify'

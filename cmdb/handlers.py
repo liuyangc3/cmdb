@@ -27,6 +27,19 @@ class BaseHandler(RequestHandler):
         self.service_dict = {"type": "service"}
         self.project_dict = {"type": "project"}
 
+    def get_json_body_arguments(self):
+        """ 解析 request.body, 支持 JSON格式
+        """
+        content_type = self.request.headers['Content-Type']
+        if content_type.startswith("application/json"):
+            return json_decode(self.request.body)
+        if content_type.startswith("multipart/form-data")\
+                or content_type.startswith("application/x-www-form-urlencoded"):
+            # "multipart/form-data" and "application/x-www-form-urlencoded"
+            # support by httputil.HTTPServerRequest
+            return parse_args(self.request.body_arguments)
+        raise ValueError('Unsupported Content-Type')
+
     def err_write(self, status_code, e):
         if isinstance(e, Exception):
             self.set_status(status_code, reason=e.message)
@@ -62,7 +75,7 @@ class ServiceHanlder(BaseHandler):
     def post(self, service_id):
         request_body = self.service_dict.copy()
         if self.request.body:
-            request_body.update(parse_args(self.request.body_arguments))
+            request_body.update(self.get_json_body_arguments())
         try:
             resp = yield self.service.add_service(service_id, request_body)
             self.write(resp)
@@ -74,7 +87,7 @@ class ServiceHanlder(BaseHandler):
     @gen.coroutine
     def put(self, service_id):
         if self.request.body:
-            request_body = parse_args(self.request.body_arguments)
+            request_body = self.get_json_body_arguments()
             try:
                 resp = yield self.service.update_service(service_id, request_body)
                 self.write(resp)
@@ -125,7 +138,7 @@ class ProjectHandler(BaseHandler):
     def post(self, project_id):
         request_body = self.project_dict.copy()
         if self.request.body:
-            request_body.update(parse_args(self.request.body_arguments))
+            request_body.update(self.get_json_body_arguments())
         try:
             resp = yield self.project.add_project(project_id, request_body)
             self.write(resp)
@@ -137,7 +150,7 @@ class ProjectHandler(BaseHandler):
     @gen.coroutine
     def put(self, project_id):
         if self.request.body:
-            request_body = parse_args(self.request.body_arguments)
+            request_body = self.get_json_body_arguments()
             if 'services' in request_body:
                 services = yield Service().list()
                 for service in request_body['services']:
