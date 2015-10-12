@@ -164,3 +164,35 @@ class ProjectHandler(BaseHandler):
         else:
             self.err_write(500, "Request body is empty")
         self.finish()
+
+
+class ServiceSearchHandler(BaseHandler):
+    @asynchronous
+    @gen.coroutine
+    def get(self):
+        key = self.get_argument("key")
+        services = yield self.service.list()
+        res = []
+        for service_id in services:
+            if key in service_id:
+                res.append(service_id)
+        if res:
+            self.write(json_encode(res))
+        else:
+            self.err_write(500, "Not Found Service")
+
+
+class ProjectSearchHandler(BaseHandler):
+    @asynchronous
+    @gen.coroutine
+    def get(self):
+        key = self.get_argument("key")
+        projects = yield self.project.list()
+        res = []
+        for project_id in projects:
+            if key in project_id:
+                res.append(project_id)
+        if res:
+            self.write(json_encode(res))
+        else:
+            self.err_write(500, "Not Found Project")
