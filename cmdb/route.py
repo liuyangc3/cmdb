@@ -17,6 +17,8 @@ router = [
     (r'/js/(.*)', StaticFileHandler, {"path": os.path.join(static, "cmdb-front/app/js")}),
     (r'/css/(.*)', StaticFileHandler, {"path": os.path.join(static, "cmdb-front/app/css")}),
     (r'/views/(.*)', StaticFileHandler, {"path": os.path.join(static, "cmdb-front/app/views")}),
+    (r'/image/(.*)', StaticFileHandler, {"path": os.path.join(static, "cmdb-front/app/image")}),
+
 
     # service api
     (r'/api/v1/service/list', ServicesHanlder),

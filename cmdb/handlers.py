@@ -58,8 +58,9 @@ class ServicesHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self):
-        # :TODO
-        pass
+        resp = yield self.service.list()
+        self.write(json_encode(resp))
+        self.finish()
 
 
 class ServiceHanlder(BaseHandler):
