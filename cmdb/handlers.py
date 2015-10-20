@@ -90,7 +90,7 @@ class ServiceHanlder(BaseHandler):
         if self.request.body:
             request_body = self.get_json_body_arguments()
             try:
-                resp = yield self.service.update_service(service_id, request_body)
+                resp = yield self.service._update_doc(service_id, request_body)
                 self.write(resp)
             except Exception as e:
                 self.err_write(500, e)
@@ -158,7 +158,7 @@ class ProjectHandler(BaseHandler):
                     if service not in services:
                         self.err_write(500, 'Service {0} not exist'.format(service))
             try:
-                resp = yield self.project.update_project(project_id, request_body)
+                resp = yield self.project._update_doc(project_id, request_body)
                 self.write(resp)
             except Exception as e:
                 self.err_write(500, e)

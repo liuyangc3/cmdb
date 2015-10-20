@@ -112,7 +112,6 @@ class Service(CouchBase):
             if field in request_body:
                 raise ValueError('Can not Change Document Field {0}'.format(field))
 
-
     @gen.coroutine
     def list(self):
         resp = yield self.client.get('_design/service/_view/list')
@@ -147,13 +146,13 @@ class Service(CouchBase):
         resp = yield self._add_service(ip, port, request_body)
         raise gen.Return(resp)
 
-    @gen.coroutine
-    def update_service(self, service_id, request_body):
-        self.check_field(request_body)
-        doc = yield self.get_doc(service_id)
-        doc.update(request_body)
-        resp = yield self._update_doc(service_id, doc)
-        raise gen.Return(resp)
+    # @gen.coroutine
+    # def update_service(self, service_id, request_body):
+    #     # self.check_field(request_body)
+    #     # doc = yield self.get_doc(service_id)
+    #     # doc.update(request_body)
+    #     resp = yield self._update_doc(service_id, request_body)
+    #     raise gen.Return(resp)
 
     @gen.coroutine
     def delete_service_field(self, service_id, fields):
@@ -216,11 +215,11 @@ class Project(CouchBase):
             request_body.update({"_id": project_id})
             resp = yield self._update_doc(project_id, request_body)
             raise gen.Return(resp)
-
-    @gen.coroutine
-    def update_project(self, project_id, request_body):
-        doc = yield self.get_doc(project_id)
-        self.check_field(request_body)
-        doc = self._merge_services(request_body, doc)
-        resp = yield self._update_doc(project_id, doc)
-        raise gen.Return(resp)
+    #
+    # @gen.coroutine
+    # def update_project(self, project_id, request_body):
+    #     doc = yield self.get_doc(project_id)
+    #     self.check_field(request_body)
+    #     doc = self._merge_services(request_body, doc)
+    #     resp = yield self._update_doc(project_id, doc)
+    #     raise gen.Return(resp)
