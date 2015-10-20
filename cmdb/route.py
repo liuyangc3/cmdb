@@ -6,7 +6,7 @@ from tornado.web import RedirectHandler
 from tornado.web import StaticFileHandler
 from cmdb.handlers import *
 
-re_project_name = '[A-Z0-9%]+'
+re_project_name = '[a-zA-Z0-9%]+'
 re_ip_port = '\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}:\d{2,5}'
 static = os.path.dirname(__file__)
 
