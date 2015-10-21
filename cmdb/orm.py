@@ -107,10 +107,15 @@ class Service(CouchBase):
         raise ValueError('Invalid ip address {0}'.format(ip_address))
 
     @staticmethod
-    def check_field(request_body):
-        for field in ('ip', 'port', 'type'):
-            if field in request_body:
-                raise ValueError('Can not Change Document Field {0}'.format(field))
+    def check_field(service_id, request_body):
+        ip, port = service_id.split(':')
+        values = ('service', ip, port)
+        fields = ('type', 'ip', 'port')
+        for value, field in zip(values, fields):
+            if fields not in request_body:
+                raise ValueError('Miss Field {0}'.format(field))
+            elif request_body[fields] != value:
+                raise ValueError('Can not Change Value of Field: {0}'.format(field))
 
     @gen.coroutine
     def list(self):
@@ -120,24 +125,13 @@ class Service(CouchBase):
             services.append(row['key'])
         raise gen.Return(services)
 
-    # @gen.coroutine
-    # def _add_service(self, ip, port, request_body):
-    #     service_id = "{0}:{1}".format(ip, port)
-    #     request_body.update({
-    #         "_id": service_id,
-    #         "ip": ip,
-    #         "port": port
-    #     })
-    #     resp = yield self.client.put(service_id, request_body)
-    #     raise gen.Return(resp.body)
-
     @gen.coroutine
     def add_service(self, service_id, request_body):
         exist = yield self.has_doc(service_id)
         if exist:
             raise KeyError('Service id exist')
         ip, port = service_id.split(':')
-        self.check_ip(ip)
+        self.check_ip(ip)  # 检查ip格式
         if "name" not in request_body:
             if port not in service_map:
                 raise ValueError('Unrecognized port,Must specify'
@@ -151,13 +145,13 @@ class Service(CouchBase):
         resp = yield self._update_doc(service_id, request_body)
         raise gen.Return(resp)
 
-    # @gen.coroutine
-    # def update_service(self, service_id, request_body):
-    #     # self.check_field(request_body)
-    #     # doc = yield self.get_doc(service_id)
-    #     # doc.update(request_body)
-    #     resp = yield self._update_doc(service_id, request_body)
-    #     raise gen.Return(resp)
+    @gen.coroutine
+    def update_service(self, service_id, request_body):
+        self.check_field(service_id, request_body)
+        # doc = yield self.get_doc(service_id)
+        # doc.update(request_body)
+        resp = yield self._update_doc(service_id, request_body)
+        raise gen.Return(resp)
 
     @gen.coroutine
     def delete_service_field(self, service_id, fields):
@@ -177,20 +171,20 @@ class Project(CouchBase):
 
     @staticmethod
     def check_field(request_body):
-        if 'type' in request_body:
-            raise ValueError('Can not Change Document Field type')
+        if 'type' in request_body and 'project' != request_body['type']:
+            raise ValueError('Can Not Change Document Field: type')
 
-    @staticmethod
-    def _merge_services(request_body, doc):
-        if 'services' in request_body and 'services' in doc:
-            # 取提交service 集合与文档service集合的并集
-            # 作为最终的service
-            x = set(request_body['services'])
-            y = set(doc['services'])
-            if x & y:
-                request_body['services'] = list(x | y)
-        doc.update(request_body)
-        return doc
+    # @staticmethod
+    # def _merge_services(request_body, doc):
+    #     if 'services' in request_body and 'services' in doc:
+    #         # 取提交service 集合与文档service集合的并集
+    #         # 作为最终的service
+    #         x = set(request_body['services'])
+    #         y = set(doc['services'])
+    #         if x & y:
+    #             request_body['services'] = list(x | y)
+    #     doc.update(request_body)
+    #     return doc
 
     @gen.coroutine
     def list(self):
@@ -222,11 +216,17 @@ class Project(CouchBase):
                 request_body['services'] = []
             resp = yield self._update_doc(project_id, request_body)
             raise gen.Return(resp)
-    #
-    # @gen.coroutine
-    # def update_project(self, project_id, request_body):
-    #     doc = yield self.get_doc(project_id)
-    #     self.check_field(request_body)
-    #     doc = self._merge_services(request_body, doc)
-    #     resp = yield self._update_doc(project_id, doc)
-    #     raise gen.Return(resp)
+
+    @gen.coroutine
+    def update_project(self, project_id, request_body):
+        exist = yield self.has_doc(project_id)
+        if exist:
+            raise KeyError('Project exist')
+        self.check_field(request_body)
+        if 'services' in request_body:
+            services = yield Service().list()
+            for req_service in request_body['services']:
+                if req_service not in services:
+                    raise ValueError('Service: {0} not exist'.format(req_service))
+        resp = yield self._update_doc(project_id, request_body)
+        raise gen.Return(resp)
