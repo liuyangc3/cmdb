@@ -152,18 +152,23 @@ class ProjectHandler(BaseHandler):
     def put(self, project_id):
         if self.request.body:
             request_body = self.get_json_body_arguments()
-            if 'services' in request_body:
-                services = yield Service().list()
-                for service in request_body['services']:
-                    if service not in services:
-                        self.err_write(500, 'Service {0} not exist'.format(service))
             try:
-                resp = yield self.project._update_doc(project_id, request_body)
+                resp = yield self.project.update_project(project_id, request_body)
                 self.write(resp)
             except Exception as e:
                 self.err_write(500, e)
         else:
             self.err_write(500, "Request body is empty")
+        self.finish()
+
+    @asynchronous
+    @gen.coroutine
+    def delete(self, project_id):
+        try:
+            resp = yield self.project.del_doc(project_id)
+            self.write('{{"ok": {0}}}'.format(resp))
+        except Exception as e:
+                self.err_write(500, e)
         self.finish()
 
 
