@@ -148,8 +148,8 @@ class Service(CouchBase):
             "ip": ip,
             "port": port
         })
-        resp = yield self.client.put(service_id, request_body)
-        raise gen.Return(resp.body)
+        resp = yield self._update_doc(service_id, request_body)
+        raise gen.Return(resp)
 
     # @gen.coroutine
     # def update_service(self, service_id, request_body):
@@ -218,6 +218,8 @@ class Project(CouchBase):
             raise KeyError('Project exist')
         else:
             request_body.update({"_id": project_id})
+            if 'services' not in request_body:
+                request_body['services'] = []
             resp = yield self._update_doc(project_id, request_body)
             raise gen.Return(resp)
     #
