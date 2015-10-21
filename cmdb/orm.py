@@ -120,16 +120,16 @@ class Service(CouchBase):
             services.append(row['key'])
         raise gen.Return(services)
 
-    @gen.coroutine
-    def _add_service(self, ip, port, request_body):
-        service_id = "{0}:{1}".format(ip, port)
-        request_body.update({
-            "_id": service_id,
-            "ip": ip,
-            "port": port
-        })
-        resp = yield self.client.put(service_id, request_body)
-        raise gen.Return(resp.body)
+    # @gen.coroutine
+    # def _add_service(self, ip, port, request_body):
+    #     service_id = "{0}:{1}".format(ip, port)
+    #     request_body.update({
+    #         "_id": service_id,
+    #         "ip": ip,
+    #         "port": port
+    #     })
+    #     resp = yield self.client.put(service_id, request_body)
+    #     raise gen.Return(resp.body)
 
     @gen.coroutine
     def add_service(self, service_id, request_body):
@@ -143,8 +143,13 @@ class Service(CouchBase):
                 raise ValueError('Unrecognized port,Must specify'
                                  ' the name field in the body')
             request_body["name"] = service_map[port]
-        resp = yield self._add_service(ip, port, request_body)
-        raise gen.Return(resp)
+        request_body.update({
+            "_id": service_id,
+            "ip": ip,
+            "port": port
+        })
+        resp = yield self.client.put(service_id, request_body)
+        raise gen.Return(resp.body)
 
     # @gen.coroutine
     # def update_service(self, service_id, request_body):
