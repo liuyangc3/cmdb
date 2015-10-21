@@ -221,7 +221,7 @@ class Project(CouchBase):
     def update_project(self, project_id, request_body):
         exist = yield self.has_doc(project_id)
         if not exist:
-            raise KeyError('Project:{0} not Exist'.format(project_id))
+            raise KeyError('Project: {0} not Exist'.format(project_id))
         self.check_field(request_body)
         if 'services' in request_body:
             services = yield Service().list()
