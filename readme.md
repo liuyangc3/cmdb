@@ -1,6 +1,53 @@
+# 安装cmdb
+## 后端项目
+```
+git clone https://gitcafe.com/hudson/cmdb.git
+cd cmdb
+python setup.py build
+python setup.py install
+```
+## 前端项目
+```
+git clone https://gitcafe.com/hudson/cmdb-front.git
+```
+## 安装数据库
+使用 couchdb 作为后端数据库,安装依赖
+```
+sudo yum -y install autoconf
+sudo yum -y install autoconf-archive
+sudo yum -y install automake
+sudo yum -y install curl-devel
+sudo yum -y install erlang-asn1
+sudo yum -y install erlang-erts
+sudo yum -y install erlang-eunit
+sudo yum -y install erlang-os_mon
+sudo yum -y install erlang-xmerl
+sudo yum -y install help2man
+sudo yum -y install js-devel
+sudo yum -y install libicu-devel
+sudo yum -y install libtool
+sudo yum -y install perl-Test-Harness
+```
+下载
+```
+wget http://mirrors.hust.edu.cn/apache/couchdb/source/1.6.1/apache-couchdb-1.6.1.tar.gz
+tar xzf apache-couchdb-1.6.1.tar.gz
+cd apache-couchdb-1.6.1
+./configure
+make && sudo make install
+```
+### 启动
+Linux
+```
+/usr/local/etc/init.d/couchdb start
+```
+MacOS
+```
 /usr/local/Cellar/couchdb/1.6.1_3/bin/couchdb
+```
 
-# init databases
+### 初始化
+建库,desgin
 ```
 ./db.sh
 ```
@@ -11,10 +58,6 @@ curl http://localhost:5984/cmdb/_design/service/_list/get_service/list?name=tomc
 curl http://localhost:5984/cmdb/_design/project/_view/list?group=true
 ```
 
-# 加载前端项目
-```
-git clone https://gitcafe.com/hudson/cmdb-front.git
-```
 
 # 服务api
 /api/v1/service/<service id>
