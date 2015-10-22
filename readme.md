@@ -11,50 +11,50 @@ curl http://localhost:5984/cmdb/_design/service/_list/get_service/list?name=tomc
 curl http://localhost:5984/cmdb/_design/project/_view/list?group=true
 ```
 
-# ¼ÓÔØÇ°¶ËÏîÄ¿
+# åŠ è½½å‰ç«¯é¡¹ç›®
 ```
 git clone https://gitcafe.com/hudson/cmdb-front.git
 ```
 
-# ·şÎñapi
+# æœåŠ¡api
 /api/v1/service/<service id>
-## ²é¿´·şÎñ
+## æŸ¥çœ‹æœåŠ¡
 GET
-## Ìí¼Ó·şÎñ
+## æ·»åŠ æœåŠ¡
 ```
 curl -X POST http://localhost:8005/api/v1/service/1.1.1.1:8080 -d 'name=hello'
 ```
-# ¸üĞÂ·şÎñ
+# æ›´æ–°æœåŠ¡
 ```
 curl -X PUT http://localhost:8005/api/v1/service/1.1.1.1:8080 -d 'name=world'
 ```
-# É¾³ı·şÎñ
-É¾³ıÕû¸ö·şÎñ
+# åˆ é™¤æœåŠ¡
+åˆ é™¤æ•´ä¸ªæœåŠ¡
 ```
 curl -X DELETE http://127.0.0.1:8005/api/v1/service/1.1.1.1:8080
 ```
 
-É¾³ı×Ö¶Î
+åˆ é™¤å­—æ®µ
 ```
 curl -X DELETE http://127.0.0.1:8005/api/v1/service/1.1.1.1:8080field=f1
 ```
 
-É¾³ıÄ³¼¸¸ö×Ö¶Î
+åˆ é™¤æŸå‡ ä¸ªå­—æ®µ
 ```
 curl -X DELETE 'http://127.0.0.1:8005/api/v1/service/1.1.1.1:8080?field=f1&field=f2
 ```
 
-# ÏîÄ¿api
+# é¡¹ç›®api
 /api/v1/project/<project id>
 
-## ²é¿´
+## æŸ¥çœ‹
 
-## Ìí¼ÓÏîÄ¿
+## æ·»åŠ é¡¹ç›®
 ```
-curl -X POST http://localhost:8005/api/v1/project/²âÊÔÏîÄ¿ -d 'name=hello'
+curl -X POST http://localhost:8005/api/v1/project/æµ‹è¯•é¡¹ç›® -d 'name=hello'
 ```
 
-## ÎªÏîÄ¿Ìí¼Ó·şÎñ
+## ä¸ºé¡¹ç›®æ·»åŠ æœåŠ¡
 
-## ¸üĞÂ
+## æ›´æ–°
 
