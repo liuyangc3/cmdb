@@ -2,17 +2,76 @@
 # -*- coding:utf-8 -*-
 
 from __future__ import unicode_literals
+import re
 from tornado import gen
 from tornado import ioloop
-from tornado.httpclient import HTTPClient
+from tornado.httpclient import HTTPClient, HTTPRequest
 from tornado.httpclient import HTTPError
-from tornado.escape import json_decode
+from tornado.escape import url_escape, json_decode
 
-from cmdb.utils.httpclient import CouchAsyncHTTPClient
-from cmdb.conf import couch, service_map
+from cmdb.httpclient import CouchAsyncHTTPClient
+from cmdb.conf import service_map
+
+
+class CouchServer(object):
+    """
+    couchdb database operation
+    """
+    def __init__(self, url='http://localhost:5984/', io_loop=None):
+        self.base_url = url if url.endswith('/') else url + '/'
+        self.io_loop = io_loop or ioloop.IOLoop.instance()
+        self.client = HTTPClient()
+
+    def fetch(self, uri, method='GET', body=None, **kwargs):
+        """
+        direct pass uri to couchdb, for example
+        couch = CouchBase(base_url, io_loop)
+        couch.fetch('_all_docs') will
+        request http://couchdb:5984/database/_all_docs
+
+        couch.fetch('foo', method="POST", body={"foo": "bar"})
+        will make a POST to http://couchdb:5984/database/foo
+        """
+        url = self.base_url + uri
+        if body:
+            body = json_decode(body)
+        if method == "PUT" and not body:
+            body = ''
+        request = HTTPRequest(url,
+                              method=method,
+                              body=body
+                              )
+        return self.client.fetch(request, **kwargs)
+
+    def create(self, database):
+        # must begin with a letter
+        # only lowercase characters, digits, and '-_'
+        if not re.match(r'^[a-z][a-z0-9-_]+$', database):
+            raise ValueError("Invalid Database Name: {0}".format(database))
+        try:
+            resp = self.fetch(database, method="PUT", body='')
+            return resp.body
+        except HTTPError as e:
+            if e.message == 'HTTP 412: Precondition Failed':
+                raise ValueError("Database: {0} Exist".format(database))
+
+    def delete(self, database):
+        try:
+            resp = self.fetch(database, method="DELETE")
+            return resp.body
+        except HTTPError:
+            raise ValueError('Database: {0} not Exist'.format(database))
+
+    def list(self):
+        resp = self.client.fetch(self.base_url + '_all_dbs')
+        return [db for db in json_decode(resp.body) if not db.startswith('_')]
 
 
 class Document(dict):
+    """
+    couchdb document class
+    while do document[key] = value,key will trans to unicode
+    """
     def __init__(self, _dict, **kwargs):
         super(Document, self).__init__(**kwargs)
         self.update(_dict)
@@ -22,116 +81,110 @@ class Document(dict):
 
 
 class CouchBase(object):
-    def __init__(self, url, io_loop=None):
-        self.url = url
+    """
+    couchdb document operation
+    """
+    def __init__(self, url='http://localhost:5984/', io_loop=None):
+        self.url = url if url.endswith('/') else url + '/'
         self.io_loop = io_loop or ioloop.IOLoop.instance()
+        self.client = CouchAsyncHTTPClient(self.url, io_loop=self.io_loop)
+
+    @gen.coroutine
+    def list_ids(self, database):
+        """ only list document id which not starts with '_' """
+        resp = yield self.client.get(database, '_all_docs')
+        docs_json = json_decode(resp.body)
+        raise gen.Return([doc['id'] for doc in docs_json['rows'] if not doc['id'].startswith('_')])
+
+    @gen.coroutine
+    def get_doc(self, database, doc_id):
+        """
+        return Document instance
+        """
         try:
-            HTTPClient().fetch(self.url)
-            self.client = CouchAsyncHTTPClient(self.url, self.io_loop)
-        except HTTPError:
-            raise ValueError('can not found database')
-
-    @gen.coroutine
-    def _all_docs(self):
-        resp = yield self.client.get('_all_docs')
-        raise gen.Return(resp.body)
-
-    @gen.coroutine
-    def list_ids(self):
-        """ only list ids that not starts with '_' """
-        res = []
-        docs = yield self._all_docs()
-        docs_json = json_decode(docs)
-        for value in docs_json['rows']:
-            _id = value['id']
-            if not _id.startswith('_'):
-                res.append(_id)
-        raise gen.Return(res)
-
-    @gen.coroutine
-    def get_doc(self, doc_id):
-        try:
-            resp = yield self.client.get(doc_id)
-            _dict = json_decode(resp.body)
-            raise gen.Return(Document(_dict))
+            resp = yield self.client.get(database, doc_id)
+            raise gen.Return(Document(json_decode(resp.body)))
         except HTTPError:
             raise ValueError('Document {0} not Exist'.format(doc_id))
 
     @gen.coroutine
-    def has_doc(self, doc_id):
+    def has_doc(self, database, doc_id):
         try:
-            resp = yield self.client.head(doc_id)
+            resp = yield self.client.head(database, doc_id)
             raise gen.Return(resp.code == 200)
         except HTTPError:
             raise gen.Return(False)
 
     @gen.coroutine
-    def get_doc_rev(self, doc_id):
+    def get_doc_rev(self, database, doc_id):
         try:
-            resp = yield self.client.head(doc_id)
+            resp = yield self.client.head(database, doc_id)
             raise gen.Return(resp.headers['Etag'].strip('"'))
         except HTTPError:
             raise ValueError("Document {0} not Exist".format(doc_id))
 
     @gen.coroutine
-    def _update_doc(self, doc_id, doc):
-        resp = yield self.client.put(doc_id, doc)
+    def update_doc(self, database, doc_id, doc):
+        resp = yield self.client.put(database, doc_id, doc)
         raise gen.Return(resp.body.decode('utf-8'))
 
     @gen.coroutine
-    def _update_doc_field(self, doc_id, **fields):
-        doc = yield self.get_doc(doc_id)
+    def update_doc_field(self, database, doc_id, **fields):
+        doc = yield self.get_doc(database, doc_id)
         for field, value in fields.items():
             doc[field] = value
-        resp = yield self.client.put(doc_id, doc)
+        resp = yield self.client.put(database, doc_id, doc)
         raise gen.Return(resp.body.decode('utf-8'))
 
     @gen.coroutine
-    def del_doc(self, doc_id):
-        rev = yield self.get_doc_rev(doc_id)
-        resp = yield self.client.delete(doc_id, rev)
-        # json_decode can not decode "True" but "true"
+    def del_doc(self, database, doc_id):
+        rev = yield self.get_doc_rev(database, doc_id)
+        resp = yield self.client.delete(database, doc_id, rev)
+        # json_decode can not decode String "True" but "true"
+        # should return lowercase string "true"
         raise gen.Return("true" if resp.code == 200 else "false")
 
 
 class Service(CouchBase):
-    def __init__(self, url=couch['url'], io_loop=None):
+    """
+    service document operation
+    """
+
+    def __init__(self, url='http://localhost:5984/', io_loop=None):
         super(Service, self).__init__(url, io_loop)
+        self.reserved_key = ('type', 'ip', 'port')
 
     @staticmethod
-    def check_ip(ip_address):
+    def check_ip_format(ip_address):
         pieces = ip_address.split('.')
         if 4 == len(pieces):
             if all(0 <= int(i) < 256 for i in pieces):
                 return True
         raise ValueError('Invalid ip address {0}'.format(ip_address))
 
-    @staticmethod
-    def check_field(service_id, request_body):
+    def check_service_data(self, service_id, request_body):
         ip, port = service_id.split(':')
         values = ('service', ip, port)
-        fields = ('type', 'ip', 'port')
-        for value, field in zip(values, fields):
-            if fields not in request_body:
+        for field, value in zip(self.reserved_key, values):
+            if field not in request_body:
                 raise ValueError('Miss Field {0}'.format(field))
-            elif request_body[fields] != value:
+            elif request_body[field] != value:
                 raise ValueError('Can not Change Value of Field: {0}'.format(field))
 
     @gen.coroutine
-    def list(self):
-        resp = yield self.client.get('_design/service/_view/list')
-        services = []
-        for row in json_decode(resp.body)['rows']:
-            services.append(row['key'])
+    def list_service(self, database):
+        resp = yield self.client.get(database, '_design/service/_view/list')
+        services = [row['key'] for row in json_decode(resp.body)['rows']]
         raise gen.Return(services)
 
     @gen.coroutine
-    def add_service(self, service_id, request_body):
-        exist = yield self.has_doc(service_id)
-        if exist:
-            raise KeyError('Service id exist')
+    def add_service(self, database, service_id, request_body):
         ip, port = service_id.split(':')
-        self.check_ip(ip)  # 检查ip格式
+        self.check_ip_format(ip)
+        exist = yield self.has_doc(database, service_id)
+        if exist:
+            raise KeyError('Service: {0} Exist'.format(service_id))
+
         if "name" not in request_body:
             if port not in service_map:
                 raise ValueError('Unrecognized port,Must specify'
@@ -142,91 +195,59 @@ class Service(CouchBase):
             "ip": ip,
             "port": port
         })
-        resp = yield self._update_doc(service_id, request_body)
+        resp = yield self.update_doc(database, service_id, request_body)
         raise gen.Return(resp)
 
     @gen.coroutine
     def update_service(self, service_id, request_body):
-        self.check_field(service_id, request_body)
+        self.check_service_data(service_id, request_body)
         # doc = yield self.get_doc(service_id)
         # doc.update(request_body)
-        resp = yield self._update_doc(service_id, request_body)
-        raise gen.Return(resp)
-
-    @gen.coroutine
-    def delete_service_field(self, service_id, fields):
-        self.check_field(fields)
-        doc = yield self.get_doc(service_id)
-        for field in fields:
-            if field not in doc:
-                raise KeyError('Field {0} Not In Service {1}'.format(field, service_id))
-            del doc[field]
-        resp = yield self._update_doc(service_id, doc)
+        resp = yield self.update_doc(service_id, request_body)
         raise gen.Return(resp)
 
 
 class Project(CouchBase):
-    def __init__(self, url=couch['url'], io_loop=None):
+    """
+    project document operation
+    """
+
+    def __init__(self, url='http://localhost:5984/', io_loop=None):
         super(Project, self).__init__(url, io_loop)
+        self.reserved_key = ('type', 'services')
 
     @staticmethod
-    def check_field(request_body):
+    def check_project_data(request_body):
         if 'type' in request_body and 'project' != request_body['type']:
             raise ValueError('Can Not Change Document Field: type')
 
-    # @staticmethod
-    # def _merge_services(request_body, doc):
-    #     if 'services' in request_body and 'services' in doc:
-    #         # 取提交service 集合与文档service集合的并集
-    #         # 作为最终的service
-    #         x = set(request_body['services'])
-    #         y = set(doc['services'])
-    #         if x & y:
-    #             request_body['services'] = list(x | y)
-    #     doc.update(request_body)
-    #     return doc
+    @gen.coroutine
+    def list_project(self, database):
+        resp = yield self.client.get(database, '_design/project/_view/list?group=true')
+        raise gen.Return([row['key'] for row in json_decode(resp.body)['rows']])
 
     @gen.coroutine
-    def list(self):
-        resp = yield self.client.get('_design/project/_view/list?group=true')
-        r = json_decode(resp.body)
-        projects = []
-        for row in r['rows']:
-            projects.append(row['key'])
-        raise gen.Return(projects)
-
-    @gen.coroutine
-    def get_project(self, project_id):
-        # 父类 get_doc 返回 dict 对象
-        # 这里无法使用 get_doc 取 project 信息
-        try:
-            resp = yield self.client.get(project_id)
-            raise gen.Return(resp.body)
-        except HTTPError:
-            raise ValueError('Document {0} not Exist'.format(project_id))
-
-    @gen.coroutine
-    def add_project(self, project_id, request_body):
-        exist = yield self.has_doc(project_id)
+    def add_project(self, database, project_id, request_body):
+        exist = yield self.has_doc(database, project_id)
         if exist:
-            raise KeyError('Project exist')
-        else:
-            request_body.update({"_id": project_id})
-            if 'services' not in request_body:
-                request_body['services'] = []
-            resp = yield self._update_doc(project_id, request_body)
-            raise gen.Return(resp)
+            raise KeyError('Project: {0} Exist'.format(project_id))
+
+        request_body.update({"_id": project_id})
+        if 'services' not in request_body:
+            request_body['services'] = []
+        resp = yield self.update_doc(database, project_id, request_body)
+        raise gen.Return(resp)
 
     @gen.coroutine
-    def update_project(self, project_id, request_body):
-        exist = yield self.has_doc(project_id)
+    def update_project(self, database, project_id, request_body):
+        exist = yield self.has_doc(database, project_id)
         if not exist:
             raise KeyError('Project: {0} not Exist'.format(project_id))
-        self.check_field(request_body)
+        self.check_project_data(request_body)
         if 'services' in request_body:
-            services = yield Service().list()
+            services = yield Service(self.url, self.io_loop).list_service(database)
             for req_service in request_body['services']:
                 if req_service not in services:
                     raise ValueError('Service: {0} not exist'.format(req_service))
-        resp = yield self._update_doc(project_id, request_body)
+        resp = yield self.update_doc(database, project_id, request_body)
         raise gen.Return(resp)

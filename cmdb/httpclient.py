@@ -13,14 +13,14 @@ class CouchAsyncHTTPClient(object):
         self.url = url
         self.client = AsyncHTTPClient(io_loop)
 
-    def fetch(self, uri, method, body=None, **kwargs):
+    def fetch(self, uri, method="GET", body=None, **kwargs):
         """
         add Content-Type in Header
         join base base_url and uri
         """
+        # if "/" in uri, url_escape will turn it to %2F
+        # and %2F can not be recognized in couchdb
         request = HTTPRequest(
-            # if "/" in uri, url_escape will turn it to %2F
-            # and %2F can not be recognized in couchdb
             url="{0}/{1}".format(self.url, uri),
             method=method,
             headers={'Content-Type': 'application/json'},
@@ -29,28 +29,32 @@ class CouchAsyncHTTPClient(object):
         return self.client.fetch(request, **kwargs)
 
     @gen.coroutine
-    def head(self, uri):
+    def head(self, database, doc_id):
+        uri = database + '/' + doc_id
         resp = yield self.fetch(uri, "HEAD")
         raise gen.Return(resp)
 
     @gen.coroutine
-    def get(self, uri):
+    def get(self, database, doc_id):
+        uri = database + '/' + doc_id
         resp = yield self.fetch(uri, "GET")
         raise gen.Return(resp)
 
     @gen.coroutine
-    def put(self, uri, doc):
+    def put(self, database, doc_id, doc):
+        uri = database + '/' + doc_id
         resp = yield self.fetch(uri, "PUT", body=doc)
         raise gen.Return(resp)
 
     @gen.coroutine
-    def delete(self, uri, rev):
+    def delete(self, database, doc_id, rev):
         # url_escape turn '=' into '%3F'
         # '%3F' not work in couchdb
         req = HTTPRequest(
-            url="{0}/{1}?rev={2}".format(
+            url="{0}/{1}/{2}?rev={3}".format(
                 self.url,
-                url_escape(uri),
+                database,
+                doc_id,
                 rev
             ),
             method="DELETE",
