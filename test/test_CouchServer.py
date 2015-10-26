@@ -1,16 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from tornado.escape import json_decode
+import unittest
 from tornado.testing import AsyncTestCase
 
-from cmdb.orm import CouchServer, CouchBase
+from cmdb.orm import CouchServer
 
 
 class TestCouchServer(AsyncTestCase):
     @classmethod
     def setUpClass(cls):
-        cls.database = 'couch_test'
+        cls.database = 'couch_server'
         cls.server = CouchServer()
 
     def test_1_create(self):
@@ -21,11 +21,10 @@ class TestCouchServer(AsyncTestCase):
         databases = self.server.list()
         self.assertIn(self.database, databases)
 
-    def test_3_use(self):
-        couch = self.server.use(self.database)
-        self.assertIsInstance(couch, CouchBase)
-
     def test_4_delete(self):
         resp = self.server.delete(self.database)
         self.assertEqual(resp, '{"ok":true}\n')
         self.assertRaises(ValueError, self.server.delete, self.database)
+
+if __name__ == '__main__':
+    unittest.main()
