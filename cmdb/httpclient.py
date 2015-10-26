@@ -11,42 +11,36 @@ from tornado.escape import url_escape, json_encode
 class CouchAsyncHTTPClient(object):
     def __init__(self, url, io_loop):
         self.url = url
-        self.io_loop = io_loop
-        self.client = AsyncHTTPClient(self.io_loop)
+        self.client = AsyncHTTPClient(io_loop)
 
-    def _fetch(self, *args, **kwargs):
-        return self.client.fetch(*args, **kwargs)
-
-    def make_request(self, uri, method, doc=None):
-        return HTTPRequest(
-            # fix url_escape(uri) to uri
-            # if / in uri, url_escape will turn it to %2F
-            # and that won't work in couchdb
+    def fetch(self, uri, method, body=None, **kwargs):
+        """
+        add Content-Type in Header
+        join base base_url and uri
+        """
+        request = HTTPRequest(
+            # if "/" in uri, url_escape will turn it to %2F
+            # and %2F can not be recognized in couchdb
             url="{0}/{1}".format(self.url, uri),
             method=method,
             headers={'Content-Type': 'application/json'},
-            body=json_encode(doc) if doc else None
+            body=json_encode(body) if body else None
         )
+        return self.client.fetch(request, **kwargs)
 
     @gen.coroutine
     def head(self, uri):
-        resp = yield self._fetch(
-            self.make_request(uri, "HEAD")
-        )
+        resp = yield self.fetch(uri, "HEAD")
         raise gen.Return(resp)
 
     @gen.coroutine
     def get(self, uri):
-        resp = yield self._fetch(
-            self.make_request(uri, "GET")
-        )
+        resp = yield self.fetch(uri, "GET")
         raise gen.Return(resp)
 
     @gen.coroutine
     def put(self, uri, doc):
-        resp = yield self._fetch(
-            self.make_request(uri, "PUT", doc=doc)
-        )
+        resp = yield self.fetch(uri, "PUT", body=doc)
         raise gen.Return(resp)
 
     @gen.coroutine
@@ -62,5 +56,5 @@ class CouchAsyncHTTPClient(object):
             method="DELETE",
             headers={'Content-Type': 'application/json'}
         )
-        resp = yield self._fetch(req)
+        resp = yield self.client.fetch(req)
         raise gen.Return(resp)
