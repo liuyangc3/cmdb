@@ -18,10 +18,6 @@ class TestCouchServer(AsyncTestCase):
         self.assertEqual(resp, '{"ok":true}\n')
         # create exist database
         self.assertRaises(ValueError, self.server.create, self.database)
-        # invalid database name
-        self.assertRaises(ValueError, self.server.create, "0test")
-        self.assertRaises(ValueError, self.server.create, "Atest")
-        self.assertRaises(ValueError, self.server.create, "test$")
 
     def test_2_list(self):
         databases = self.server.list()

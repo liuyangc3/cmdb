@@ -6,7 +6,8 @@ from tornado.web import RequestHandler, asynchronous
 from tornado.escape import json_encode, json_decode
 from tornado import gen
 
-from cmdb.orm import Service, Project
+from cmdb.orm import CouchServer, Service, Project
+from cmdb.conf import couch_conf
 
 
 def parse_args(tornado_arguments):
@@ -22,9 +23,8 @@ def parse_args(tornado_arguments):
 
 class BaseHandler(RequestHandler):
     def initialize(self):
-        self.service = Service()
-        self.project = Project()
-        self.service_dict = {"type": "service"}
+        self.base_url = couch_conf['base_url']
+        self.service_dict = {"type": "couch"}
         self.project_dict = {"type": "project"}
 
     def get_json_body_arguments(self):
@@ -54,26 +54,47 @@ class IndexHandler(RequestHandler):
         self.render('index.html')
 
 
+class DatabaseHandler(BaseHandler):
+    def initialize(self):
+        self.couch = CouchServer(self.base_url)
+
+    def post(self, database):
+        resp = self.couch.create(database)
+        self.write(resp)
+        self.finish()
+
+    def delete(self, database):
+        resp = self.couch.delete(database)
+        self.write(resp)
+        self.finish()
+
+
 class ServicesHanlder(BaseHandler):
+    def initialize(self):
+        self.service = Service(self.base_url)
+
     @asynchronous
     @gen.coroutine
-    def get(self):
-        resp = yield self.service.list()
+    def get(self, database):
+        resp = yield self.service.list_service(database)
         self.write(json_encode(resp))
         self.finish()
 
 
 class ServiceHanlder(BaseHandler):
+    def initialize(self):
+        self.service = Service(self.base_url)
+
     @asynchronous
     @gen.coroutine
-    def get(self, service_id):
+    def get(self, database, service_id):
         resp = yield self.service.get_doc(service_id)
         self.write(json_encode(resp))
         self.finish()
 
     @asynchronous
     @gen.coroutine
-    def post(self, service_id):
+    def post(self, database, service_id):
         request_body = self.service_dict.copy()
         if self.request.body:
             request_body.update(self.get_json_body_arguments())
@@ -86,11 +107,11 @@ class ServiceHanlder(BaseHandler):
 
     @asynchronous
     @gen.coroutine
-    def put(self, service_id):
+    def put(self, database, service_id):
         if self.request.body:
             request_body = self.get_json_body_arguments()
             try:
-                resp = yield self.service._update_doc(service_id, request_body)
+                resp = yield self.service.update_doc(service_id, request_body)
                 self.write(resp)
             except Exception as e:
                 self.err_write(500, e)
@@ -100,48 +121,47 @@ class ServiceHanlder(BaseHandler):
 
     @asynchronous
     @gen.coroutine
-    def delete(self, service_id):
-        fields = self.get_arguments("field")
-        if fields:
-            try:
-                resp = yield self.service.delete_service_field(service_id, fields)
-                self.write(resp)
-            except Exception as e:
-                self.err_write(500, e)
-        else:
-            resp = yield self.service.del_doc(service_id)
-            self.write('{{"ok": {0}}}'.format(resp))
+    def delete(self, database, service_id):
+        resp = yield self.service.del_doc(service_id)
+        self.write('{{"ok": {0}}}'.format(resp))
         self.finish()
 
 
 class ProjectsHandler(BaseHandler):
+    def initialize(self):
+        self.project = Project(self.base_url)
+
     @asynchronous
     @gen.coroutine
-    def get(self):
-        resp = yield self.project.list()
+    def get(self, database):
+        resp = yield couchdb.list_project()
         self.write(json_encode(resp))
         self.finish()
 
 
 class ProjectHandler(BaseHandler):
+
+    def initialize(self):
+        self.project = Project(couch_conf['base_url'])
+
     @asynchronous
     @gen.coroutine
-    def get(self, project_id):
+    def get(self, database, project_id):
         try:
-            resp = yield self.project.get_project(project_id)
-            self.write(resp)
+            resp = yield self.project.get_doc(project_id)
+            self.write(json_encode(resp))
         except KeyError as e:
             self.err_write(500, e)
         self.finish()
 
     @asynchronous
     @gen.coroutine
-    def post(self, project_id):
+    def post(self, database, project_id):
         request_body = self.project_dict.copy()
         if self.request.body:
             request_body.update(self.get_json_body_arguments())
         try:
-            resp = yield self.project.add_project(project_id, request_body)
+            resp = yield self.project.add_project(database, project_id, request_body)
             self.write(resp)
         except KeyError as e:
             self.err_write(500, e)
@@ -149,7 +169,7 @@ class ProjectHandler(BaseHandler):
 
     @asynchronous
     @gen.coroutine
-    def put(self, project_id):
+    def put(self, database, project_id):
         if self.request.body:
             request_body = self.get_json_body_arguments()
             try:
@@ -163,7 +183,7 @@ class ProjectHandler(BaseHandler):
 
     @asynchronous
     @gen.coroutine
-    def delete(self, project_id):
+    def delete(self, database, project_id):
         try:
             resp = yield self.project.del_doc(project_id)
             self.write('{{"ok": {0}}}'.format(resp))
@@ -175,13 +195,11 @@ class ProjectHandler(BaseHandler):
 class ServiceSearchHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
-    def get(self):
+    def get(self, database):
+        couchdb = self.couch.use(database)
         key = self.get_argument("key")
-        services = yield self.service.list()
-        res = []
-        for service_id in services:
-            if key in service_id:
-                res.append(service_id)
+        services = yield couchdb.list_service()
+        res = [service for service in services if key in service]
         if res:
             self.write(json_encode(res))
         else:
@@ -191,13 +209,11 @@ class ServiceSearchHandler(BaseHandler):
 class ProjectSearchHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
-    def get(self):
+    def get(self, database):
+        couchdb = self.couch.use(database)
         key = self.get_argument("key")
-        projects = yield self.project.list()
-        res = []
-        for project_id in projects:
-            if key in project_id:
-                res.append(project_id)
+        projects = yield couchdb.list_project()
+        res = [project for project in projects if key in project]
         if res:
             self.write(json_encode(res))
         else:

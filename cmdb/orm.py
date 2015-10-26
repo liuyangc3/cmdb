@@ -7,7 +7,7 @@ from tornado import gen
 from tornado import ioloop
 from tornado.httpclient import HTTPClient, HTTPRequest
 from tornado.httpclient import HTTPError
-from tornado.escape import url_escape, json_decode
+from tornado.escape import json_decode
 
 from cmdb.httpclient import CouchAsyncHTTPClient
 from cmdb.conf import service_map
@@ -44,10 +44,6 @@ class CouchServer(object):
         return self.client.fetch(request, **kwargs)
 
     def create(self, database):
-        # must begin with a letter
-        # only lowercase characters, digits, and '-_'
-        if not re.match(r'^[a-z][a-z0-9-_]+$', database):
-            raise ValueError("Invalid Database Name: {0}".format(database))
         try:
             resp = self.fetch(database, method="PUT", body='')
             return resp.body

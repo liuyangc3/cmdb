@@ -6,8 +6,12 @@ from tornado.web import RedirectHandler
 from tornado.web import StaticFileHandler
 from cmdb.handlers import *
 
-re_name = '([a-zA-Z0-9%]+)'
-re_ip_port = '(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}:\d{2,5})'
+# must begin with a letter
+# only lowercase characters, digits, and '-_'
+re_db_name = '(^[a-z][a-z0-9-_]+$)'
+re_service_name = '(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}:\d{2,5})'
+re_project_name = '([a-zA-Z0-9%]+)'
+
 static = os.path.dirname(__file__)
 
 router = [
@@ -19,16 +23,18 @@ router = [
     (r'/views/(.*)', StaticFileHandler, {"path": os.path.join(static, "cmdb-front/app/views")}),
     (r'/image/(.*)', StaticFileHandler, {"path": os.path.join(static, "cmdb-front/app/image")}),
 
+    # database api
+    (r'/api/v1/database/{0}'.format(re_db_name), DatabaseHandler),
 
-    # couch api
-    (r'/api/v1/{0}/couch/list'.format(re_name), ServicesHanlder),
-    (r'/api/v1/{0}/couch/search'.format(re_name), ServiceSearchHandler),
-    (r'/api/v1/{0}/couch/{1}'.format(re_name, re_ip_port), ServiceHanlder),
+    # service api
+    (r'/api/v1/{0}/service/list'.format(re_db_name), ServicesHanlder),
+    (r'/api/v1/{0}/service/search'.format(re_db_name), ServiceSearchHandler),
+    (r'/api/v1/{0}/service/{1}'.format(re_db_name, re_service_name), ServiceHanlder),
 
     # project api
-    (r'/api/v1/{0}/project/list'.format(re_name), ProjectsHandler),
-    (r'/api/v1/{0}/project/search'.format(re_name), ProjectSearchHandler),
-    (r'/api/v1/{0}/project/{1}'.format(re_name, re_ip_port), ProjectHandler),
+    (r'/api/v1/{0}/project/list'.format(re_db_name), ProjectsHandler),
+    (r'/api/v1/{0}/project/search'.format(re_db_name), ProjectSearchHandler),
+    (r'/api/v1/{0}/project/{1}'.format(re_db_name, re_project_name), ProjectHandler),
 
 
     # 非api开头的请求 由前段框架处理
