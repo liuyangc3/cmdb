@@ -47,9 +47,8 @@ class CouchServer(object):
         try:
             resp = self.fetch(database, method="PUT", body='')
             return resp.body
-        except HTTPError as e:
-            if e.message == 'HTTP 412: Precondition Failed':
-                raise ValueError("Database: {0} Exist".format(database))
+        except HTTPError:
+            raise ValueError("Database: {0} Exist".format(database))
 
     def delete(self, database):
         try:
@@ -59,7 +58,7 @@ class CouchServer(object):
             raise ValueError('Database: {0} not Exist'.format(database))
 
     def list(self):
-        resp = self.client.fetch(self.base_url + '_all_dbs')
+        resp = self.fetch('_all_dbs')
         return [db for db in json_decode(resp.body) if not db.startswith('_')]
 
 
