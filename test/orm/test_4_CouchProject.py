@@ -9,7 +9,7 @@ from tornado.testing import AsyncTestCase
 from tornado.testing import gen_test
 
 from cmdb.orm import CouchServer, Service, Project
-from utils import setup_func
+from test.utils import setup_func
 
 
 class TestProject(AsyncTestCase):
@@ -40,10 +40,6 @@ class TestProject(AsyncTestCase):
         except ValueError as e:
             self.assertEqual(e.message, 'Can Not Change Document Field: type')
 
-    # @gen_test(timeout=3)
-    # def test_0_create_service(self):
-    #     yield self.service.add_service(self.database, self.service_id, {"type": "service"})
-
     @gen_test(timeout=3)
     def test_1_add_project(self):
         response = yield self.project.add_project(
@@ -67,7 +63,7 @@ class TestProject(AsyncTestCase):
     def test_2_list_project(self):
         # add design
         path = os.path.dirname(__file__)
-        filepath = os.path.join(path, '../design/project.json')
+        filepath = os.path.join(path, '../../design/project.json')
         with open(filepath) as f:
             doc = json_decode(f.read())
         yield self.project.update_doc(self.database, '_design/project', doc)

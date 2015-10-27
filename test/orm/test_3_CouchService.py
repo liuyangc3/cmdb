@@ -121,7 +121,7 @@ class TestCouchService(AsyncTestCase):
     def test_21_list(self):
         # add design
         path = os.path.dirname(__file__)
-        filepath = os.path.join(path, '../design/service.json')
+        filepath = os.path.join(path, '../../design/service.json')
         with open(filepath) as f:
             doc = json_decode(f.read())
         yield self.service.update_doc(self.database, '_design/service', doc)
