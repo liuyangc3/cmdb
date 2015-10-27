@@ -88,9 +88,8 @@ class CouchBase(object):
     @gen.coroutine
     def list_ids(self, database):
         """ only list document id which not starts with '_' """
-        resp = yield self.client.get(database, '_all_docs')
-        docs_json = json_decode(resp.body)
-        raise gen.Return([doc['id'] for doc in docs_json['rows'] if not doc['id'].startswith('_')])
+        resp = yield self.get_doc(database, '_all_docs')
+        raise gen.Return([doc['id'] for doc in resp['rows'] if not doc['id'].startswith('_')])
 
     @gen.coroutine
     def get_doc(self, database, doc_id):
@@ -169,8 +168,8 @@ class Service(CouchBase):
 
     @gen.coroutine
     def list_service(self, database):
-        resp = yield self.client.get(database, '_design/service/_view/list')
-        services = [row['key'] for row in json_decode(resp.body)['rows']]
+        resp = yield self.get_doc(database, '_design/service/_view/list')
+        services = [row['key'] for row in resp['rows']]
         raise gen.Return(services)
 
     @gen.coroutine
@@ -219,8 +218,9 @@ class Project(CouchBase):
 
     @gen.coroutine
     def list_project(self, database):
-        resp = yield self.client.get(database, '_design/project/_view/list?group=true')
-        raise gen.Return([row['key'] for row in json_decode(resp.body)['rows']])
+        # resp = yield self.client.get(database, '_design/project/_view/list?group=true')
+        resp = yield self.get_doc(database, '_design/project/_view/list?group=true')
+        raise gen.Return([row['key'] for row in resp['rows']])
 
     @gen.coroutine
     def add_project(self, database, project_id, request_body):
