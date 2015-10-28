@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 
 from __future__ import unicode_literals
-import re
+import os
 from tornado import gen
 from tornado import ioloop
 from tornado.httpclient import HTTPClient, HTTPRequest
@@ -17,48 +17,48 @@ class CouchServer(object):
     """
     couchdb database operation
     """
+
     def __init__(self, url='http://localhost:5984/', io_loop=None):
         self.base_url = url if url.endswith('/') else url + '/'
         self.io_loop = io_loop or ioloop.IOLoop.instance()
         self.client = HTTPClient()
 
-    def fetch(self, uri, method='GET', body=None, **kwargs):
-        """
-        direct pass uri to couchdb, for example
-        couch = CouchBase(base_url, io_loop)
-        couch.fetch('_all_docs') will
-        request http://couchdb:5984/database/_all_docs
-
-        couch.fetch('foo', method="POST", body={"foo": "bar"})
-        will make a POST to http://couchdb:5984/database/foo
-        """
-        url = self.base_url + uri
-        if body:
-            body = json_decode(body)
-        if method == "PUT" and not body:
-            body = ''
-        request = HTTPRequest(url,
-                              method=method,
-                              body=body
-                              )
-        return self.client.fetch(request, **kwargs)
-
     def create(self, database):
         try:
-            resp = self.fetch(database, method="PUT", body='')
+            resp = self.client.fetch(self.base_url + database, method="PUT", body='')
             return resp.body
         except HTTPError:
             raise ValueError("Database: {0} Exist".format(database))
 
+    @staticmethod
+    def _get_design(root):
+        design_path = os.path.join(root, 'design')
+        return [os.path.join(design_path, f) for f in os.listdir(design_path)]
+
+    def init(self, database):
+        """
+        add design document to a new database
+        """
+        root = os.path.join(os.path.dirname(__file__), '..')
+        designs = self._get_design(root)
+        for design in designs:
+            design_name = os.path.basename(design).split('.')[0]
+            with open(design) as f:
+                doc = f.read()
+                self.client.fetch(
+                    self.base_url + '{0}/_design/{1}'.format(database, design_name),
+                    method="PUT", body=doc
+                )
+
     def delete(self, database):
         try:
-            resp = self.fetch(database, method="DELETE")
+            resp = self.client.fetch(self.base_url + database, method="DELETE")
             return resp.body
         except HTTPError:
             raise ValueError('Database: {0} not Exist'.format(database))
 
-    def list(self):
-        resp = self.fetch('_all_dbs')
+    def list_db(self):
+        resp = self.client.fetch(self.base_url + '_all_dbs')
         return [db for db in json_decode(resp.body) if not db.startswith('_')]
 
 
@@ -67,6 +67,7 @@ class Document(dict):
     couchdb document class
     while do document[key] = value,key will trans to unicode
     """
+
     def __init__(self, _dict, **kwargs):
         super(Document, self).__init__(**kwargs)
         self.update(_dict)
@@ -79,6 +80,7 @@ class CouchBase(object):
     """
     couchdb document operation
     """
+
     def __init__(self, url='http://localhost:5984/', io_loop=None):
         self.url = url if url.endswith('/') else url + '/'
         self.io_loop = io_loop or ioloop.IOLoop.instance()
