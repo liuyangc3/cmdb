@@ -95,11 +95,14 @@ class CouchBase(object):
         """
         return Document instance
         """
-        try:
-            resp = yield self.client.get(database, doc_id)
+
+        resp = yield self.client.get(database, doc_id, raise_error=False)
+        if resp.code == 200:
             raise gen.Return(Document(json_decode(resp.body)))
-        except HTTPError:
-            raise ValueError('Document {0} not Exist'.format(doc_id))
+        elif resp.code == 404:
+            # {"error":"not_found","reason":"no_db_file"} for db not exist
+            # {"error":"not_found","reason":"missing"} for doc not exist
+            raise ValueError(json_decode(resp.body)['reason'])
 
     @gen.coroutine
     def has_doc(self, database, doc_id):
@@ -177,7 +180,7 @@ class Service(CouchBase):
         self.check_ip_format(ip)
         exist = yield self.has_doc(database, service_id)
         if exist:
-            raise KeyError('Service: {0} Exist'.format(service_id))
+            raise ValueError('Service: {0} Exist'.format(service_id))
 
         if "name" not in request_body:
             if port not in service_map:
@@ -195,8 +198,6 @@ class Service(CouchBase):
     @gen.coroutine
     def update_service(self, service_id, request_body):
         self.check_service_data(service_id, request_body)
-        # doc = yield self.get_doc(service_id)
-        # doc.update(request_body)
         resp = yield self.update_doc(service_id, request_body)
         raise gen.Return(resp)
 
@@ -217,7 +218,10 @@ class Project(CouchBase):
 
     @gen.coroutine
     def list_project(self, database):
-        # resp = yield self.client.get(database, '_design/project/_view/list?group=true')
+        """
+        :param database: couchdb database name
+        :return: a list contains project_id
+        """
         resp = yield self.get_doc(database, '_design/project/_view/list?group=true')
         raise gen.Return([row['key'] for row in resp['rows']])
 
@@ -225,7 +229,7 @@ class Project(CouchBase):
     def add_project(self, database, project_id, request_body):
         exist = yield self.has_doc(database, project_id)
         if exist:
-            raise KeyError('Project: {0} Exist'.format(project_id))
+            raise ValueError('Project: {0} Exist'.format(project_id))
 
         request_body.update({"_id": project_id})
         if 'services' not in request_body:
@@ -237,7 +241,7 @@ class Project(CouchBase):
     def update_project(self, database, project_id, request_body):
         exist = yield self.has_doc(database, project_id)
         if not exist:
-            raise KeyError('Project: {0} not Exist'.format(project_id))
+            raise ValueError('Project: {0} not Exist'.format(project_id))
         self.check_project_data(request_body)
         if 'services' in request_body:
             services = yield Service(self.url, self.io_loop).list_service(database)

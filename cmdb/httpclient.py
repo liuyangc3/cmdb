@@ -35,9 +35,9 @@ class CouchAsyncHTTPClient(object):
         raise gen.Return(resp)
 
     @gen.coroutine
-    def get(self, database, doc_id):
+    def get(self, database, doc_id, **kwargs):
         uri = database + '/' + doc_id
-        resp = yield self.fetch(uri, "GET")
+        resp = yield self.fetch(uri, "GET", **kwargs)
         raise gen.Return(resp)
 
     @gen.coroutine

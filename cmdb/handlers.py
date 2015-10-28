@@ -87,7 +87,6 @@ class ServicesHanlder(BaseHandler):
     @gen.coroutine
     def get(self, database):
         try:
-            self.check_database(database)
             resp = yield self.service.list_service(database)
             self.write(json_encode(resp))
         except ValueError as e:
@@ -103,8 +102,11 @@ class ServiceHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, database, service_id):
-        resp = yield self.service.get_doc(database, service_id)
-        self.write(json_encode(resp))
+        try:
+            resp = yield self.service.get_doc(database, service_id)
+            self.write(json_encode(resp))
+        except ValueError as e:
+            self.err_write(500, e)
         self.finish()
 
     @asynchronous
@@ -116,7 +118,7 @@ class ServiceHanlder(BaseHandler):
         try:
             resp = yield self.service.add_service(database, service_id, request_body)
             self.write(resp)
-        except Exception as e:
+        except ValueError as e:
             self.err_write(500, e)
         self.finish()
 
@@ -137,35 +139,41 @@ class ServiceHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def delete(self, database, service_id):
-        resp = yield self.service.del_doc(database, service_id)
-        self.write('{{"ok": {0}}}'.format(resp))
+        try:
+            resp = yield self.service.del_doc(database, service_id)
+            self.write('{{"ok": {0}}}'.format(resp))
+        except ValueError as e:
+            self.err_write(500, e)
         self.finish()
 
 
 class ProjectsHandler(BaseHandler):
     def initialize(self):
-        self.project = Project(self.base_url)
+        self.project = Project(couch_conf['base_url'])
 
     @asynchronous
     @gen.coroutine
     def get(self, database):
-        resp = yield couchdb.list_project()
-        self.write(json_encode(resp))
+        try:
+            resp = yield self.project.list_project(database)
+            self.write(json_encode(resp))
+        except ValueError as e:
+            self.err_write(500, e)
         self.finish()
 
 
 class ProjectHandler(BaseHandler):
-
     def initialize(self):
+        self.project_dict = {"type": "project"}
         self.project = Project(couch_conf['base_url'])
 
     @asynchronous
     @gen.coroutine
     def get(self, database, project_id):
         try:
-            resp = yield self.project.get_doc(project_id)
+            resp = yield self.project.get_doc(database, project_id)
             self.write(json_encode(resp))
-        except KeyError as e:
+        except ValueError as e:
             self.err_write(500, e)
         self.finish()
 
@@ -178,7 +186,7 @@ class ProjectHandler(BaseHandler):
         try:
             resp = yield self.project.add_project(database, project_id, request_body)
             self.write(resp)
-        except KeyError as e:
+        except ValueError as e:
             self.err_write(500, e)
         self.finish()
 
@@ -188,9 +196,9 @@ class ProjectHandler(BaseHandler):
         if self.request.body:
             request_body = self.get_json_body_arguments()
             try:
-                resp = yield self.project.update_project(project_id, request_body)
+                resp = yield self.project.update_project(database, project_id, request_body)
                 self.write(resp)
-            except Exception as e:
+            except ValueError as e:
                 self.err_write(500, e)
         else:
             self.err_write(500, "Request body is empty")
@@ -200,9 +208,9 @@ class ProjectHandler(BaseHandler):
     @gen.coroutine
     def delete(self, database, project_id):
         try:
-            resp = yield self.project.del_doc(project_id)
+            resp = yield self.project.del_doc(database, project_id)
             self.write('{{"ok": {0}}}'.format(resp))
-        except Exception as e:
+        except ValueError as e:
                 self.err_write(500, e)
         self.finish()
 
