@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 from tornado.web import RequestHandler, asynchronous
 from tornado.escape import json_encode, json_decode
 from tornado import gen
+from tornado.httpclient import HTTPError
 
 from cmdb.orm import CouchServer, Service, Project
 from cmdb.conf import couch_conf
@@ -22,15 +23,10 @@ def parse_args(tornado_arguments):
 
 
 class BaseHandler(RequestHandler):
-    def initialize(self):
-        self.base_url = couch_conf['base_url']
-        self.service_dict = {"type": "couch"}
-        self.project_dict = {"type": "project"}
-
     def get_json_body_arguments(self):
         """ 解析 request.body, 支持 JSON格式
         """
-        content_type = self.request.headers['Content-Type']
+        content_type = self.request.headers["Content-Type"]
         if content_type.startswith("application/json"):
             return json_decode(self.request.body)
         if content_type.startswith("multipart/form-data")\
@@ -48,6 +44,14 @@ class BaseHandler(RequestHandler):
             self.set_status(status_code, reason=e)
             self.write('{{"ok": false, "msg": "{0}"}}'.format(e))
 
+    @staticmethod
+    def check_database(database):
+        couch = CouchServer(couch_conf['base_url'])
+        try:
+            couch.fetch(database)
+        except HTTPError:
+            raise ValueError("Database: {} not Exist".format(database))
+
 
 class IndexHandler(RequestHandler):
     def get(self):
@@ -56,39 +60,50 @@ class IndexHandler(RequestHandler):
 
 class DatabaseHandler(BaseHandler):
     def initialize(self):
-        self.couch = CouchServer(self.base_url)
+        self.couch = CouchServer(couch_conf['base_url'])
 
     def post(self, database):
-        resp = self.couch.create(database)
-        self.write(resp)
+        try:
+            resp = self.couch.create(database)
+            self.write(resp)
+        except ValueError as e:
+            self.err_write(500, e)
         self.finish()
 
     def delete(self, database):
-        resp = self.couch.delete(database)
-        self.write(resp)
+        try:
+            resp = self.couch.delete(database)
+            self.write(resp)
+        except ValueError as e:
+            self.err_write(500, e)
         self.finish()
 
 
 class ServicesHanlder(BaseHandler):
     def initialize(self):
-        self.service = Service(self.base_url)
+        self.service = Service(couch_conf['base_url'])
 
     @asynchronous
     @gen.coroutine
     def get(self, database):
-        resp = yield self.service.list_service(database)
-        self.write(json_encode(resp))
+        try:
+            self.check_database(database)
+            resp = yield self.service.list_service(database)
+            self.write(json_encode(resp))
+        except ValueError as e:
+            self.err_write(500, e)
         self.finish()
 
 
 class ServiceHanlder(BaseHandler):
     def initialize(self):
-        self.service = Service(self.base_url)
+        self.service_dict = {"type": "service"}
+        self.service = Service(couch_conf['base_url'])
 
     @asynchronous
     @gen.coroutine
     def get(self, database, service_id):
-        resp = yield self.service.get_doc(service_id)
+        resp = yield self.service.get_doc(database, service_id)
         self.write(json_encode(resp))
         self.finish()
 
@@ -99,7 +114,7 @@ class ServiceHanlder(BaseHandler):
         if self.request.body:
             request_body.update(self.get_json_body_arguments())
         try:
-            resp = yield self.service.add_service(service_id, request_body)
+            resp = yield self.service.add_service(database, service_id, request_body)
             self.write(resp)
         except Exception as e:
             self.err_write(500, e)
@@ -111,7 +126,7 @@ class ServiceHanlder(BaseHandler):
         if self.request.body:
             request_body = self.get_json_body_arguments()
             try:
-                resp = yield self.service.update_doc(service_id, request_body)
+                resp = yield self.service.update_doc(database, service_id, request_body)
                 self.write(resp)
             except Exception as e:
                 self.err_write(500, e)
@@ -122,7 +137,7 @@ class ServiceHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def delete(self, database, service_id):
-        resp = yield self.service.del_doc(service_id)
+        resp = yield self.service.del_doc(database, service_id)
         self.write('{{"ok": {0}}}'.format(resp))
         self.finish()
 
