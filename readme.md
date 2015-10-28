@@ -33,12 +33,21 @@ sudo yum -y install perl-Test-Harness
 wget http://mirrors.hust.edu.cn/apache/couchdb/source/1.6.1/apache-couchdb-1.6.1.tar.gz
 tar xzf apache-couchdb-1.6.1.tar.gz
 cd apache-couchdb-1.6.1
-./configure
+./configure --with-erlang=/usr/lib64/erlang/usr/include/
 make && sudo make install
 ```
 ### 启动
 Linux
 ```
+sudo adduser -r -d /usr/local/var/lib/couchdb couchdb
+sudo chown -R couchdb /usr/local/var/lib/couchdb
+sudo chown -R couchdb /usr/local/var/log/couchdb
+sudo chown -R couchdb /usr/local/etc/couchdb/local.ini
+sudo chown -R couchdb /usr/local/var/run/couchdb
+
+sudo -u couchdb /usr/local/bin/couchdb -b
+
+or
 /usr/local/etc/init.d/couchdb start
 ```
 MacOS

@@ -1,0 +1,15 @@
+{
+   "lib": {
+       "utils": "exports['get'] = function(port){var name;switch(port){case 8080: name = \"tomcat\";break;case 2181: name = \"zookeeper\";break;case 3306: name = \"mysql\";break;case 11211: name = \"memcache\";break;case 22201: name = \"memcacheq\";break;case 61616: name = \"activemq\";break;};return name};"
+   },
+   "ansible": {
+       "map": "function(doc){\n  // 根据名字找到service\n  if(doc.type == \"service\"){\n    var name;\n    if(doc.name){\n      name = doc.name\n    }else{\n      name = require('views/lib/utils').get(doc.port);\n    }\n    emit(name,{ip:doc.ip, port:doc.port});\n  }\n}"
+   },
+   "all": {
+       "map": "function(doc){\n  if(doc.type == \"service\"){\n    emit([doc.ip, doc.port])\n  }\n}",
+       "reduce": "_count"
+   },
+   "byname": {
+       "map": "function(doc){\n  if(doc.type == \"service\"){\n    var name;\n    if(doc.name){\n      name = doc.name\n    }\n    else{\n      name = require('views/lib/utils').get(doc.port);\n    }\n  emit(name,{ip:doc.ip, port:doc.port})\n  }\n}"
+   }
+}

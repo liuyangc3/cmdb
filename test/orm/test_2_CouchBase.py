@@ -54,12 +54,18 @@ class TestCouchBase(AsyncTestCase):
         self.assertEqual(response['_id'], "test_id_01")
         # save rev for test_6_get_doc_rev
         TestCouchBase.rev = response['_rev']
-        print(TestCouchBase.rev)
 
+        # error service id
         try:
             yield self.couch.get_doc(self.database, 'not exist')
-        except Exception as e:
-            self.assertIsInstance(e, ValueError)
+        except ValueError as e:
+            self.assertEqual(e.message, 'missing')
+
+        # error database name
+        try:
+            yield self.couch.get_doc('foo', 'test_id_01')
+        except ValueError as e:
+            self.assertEqual(e.message, 'no_db_file')
 
     @gen_test(timeout=3)
     def test_6_get_doc_rev(self):
