@@ -99,7 +99,6 @@ class TestServiceHandler(AsyncHTTPTestCase):
         data = {"foo": "bar"}
         data_str = json_encode(data)
 
-
         with mock.patch.object(Service, 'update_doc') as mock_up:
             setup_func(mock_up, 'ok')
             # empty body

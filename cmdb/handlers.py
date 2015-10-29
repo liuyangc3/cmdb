@@ -44,14 +44,6 @@ class BaseHandler(RequestHandler):
             self.set_status(status_code, reason=e)
             self.write('{{"ok": false, "msg": "{0}"}}'.format(e))
 
-    @staticmethod
-    def check_database(database):
-        couch = CouchServer(couch_conf['base_url'])
-        try:
-            couch.fetch(database)
-        except HTTPError:
-            raise ValueError("Database: {} not Exist".format(database))
-
 
 class IndexHandler(RequestHandler):
     def get(self):
@@ -241,3 +233,6 @@ class ProjectSearchHandler(BaseHandler):
             self.write(json_encode(res))
         else:
             self.err_write(500, "Not Found Project")
+
+if __name__ == '__main__':
+    print(couch_conf['base_url'])

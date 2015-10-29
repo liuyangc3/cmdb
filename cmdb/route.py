@@ -37,5 +37,5 @@ router = [
     (r'/api/v1/{0}/project/{1}'.format(re_db_name, re_project_name), ProjectHandler),
 
     # 非api开头的请求 由前段框架处理
-    (r'^/(?!api/v1/).+', RedirectHandler, {"base_url": "/"})
+    (r'^/(?!api/v1/).+', RedirectHandler, {"url": "/"})
 ]
