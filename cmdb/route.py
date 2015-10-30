@@ -24,6 +24,7 @@ router = [
     (r'/image/(.*)', StaticFileHandler, {"path": os.path.join(static, "cmdb-front/app/image")}),
 
     # database api
+    (r'/api/v1/database/list'.format(re_db_name), DatabasesHandler),
     (r'/api/v1/database/{0}'.format(re_db_name), DatabaseHandler),
 
     # service api

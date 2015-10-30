@@ -50,6 +50,15 @@ class IndexHandler(RequestHandler):
         self.render('index.html')
 
 
+class DatabasesHandler(BaseHandler):
+    def initialize(self):
+        self.couch = CouchServer(couch_conf['base_url'])
+
+    def get(self):
+        dbs = self.couch.list_db()
+        self.write(json_encode(dbs))
+
+
 class DatabaseHandler(BaseHandler):
     def initialize(self):
         self.couch = CouchServer(couch_conf['base_url'])
@@ -57,6 +66,7 @@ class DatabaseHandler(BaseHandler):
     def post(self, database):
         try:
             resp = self.couch.create(database)
+            self.couch.init(database)
             self.write(resp)
         except ValueError as e:
             self.err_write(500, e)
