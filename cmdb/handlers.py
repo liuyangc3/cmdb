@@ -54,8 +54,9 @@ class DatabasesHandler(BaseHandler):
     def initialize(self):
         self.couch = CouchServer(couch_conf['base_url'])
 
+    @gen.coroutine
     def get(self):
-        dbs = self.couch.list_db()
+        dbs = yield self.couch.list_db()
         self.write(json_encode(dbs))
 
 
@@ -63,18 +64,20 @@ class DatabaseHandler(BaseHandler):
     def initialize(self):
         self.couch = CouchServer(couch_conf['base_url'])
 
+    @gen.coroutine
     def post(self, database):
         try:
-            resp = self.couch.create(database)
-            self.couch.init(database)
+            resp = yield self.couch.create(database)
+            # yield self.couch.init(database)
             self.write(resp)
         except ValueError as e:
             self.err_write(500, e)
         self.finish()
 
+    @gen.coroutine
     def delete(self, database):
         try:
-            resp = self.couch.delete(database)
+            resp = yield self.couch.delete(database)
             self.write(resp)
         except ValueError as e:
             self.err_write(500, e)

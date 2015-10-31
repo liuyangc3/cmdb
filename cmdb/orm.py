@@ -5,7 +5,8 @@ from __future__ import unicode_literals
 import os
 from tornado import gen
 from tornado import ioloop
-from tornado.httpclient import HTTPError
+from tornado.httpclient import HTTPError, AsyncHTTPClient
+from tornado.curl_httpclient import CurlAsyncHTTPClient
 from tornado.escape import json_decode
 
 from cmdb.httpclient import CouchAsyncHTTPClient
@@ -26,14 +27,21 @@ class CouchServer(object):
     def create(self, database):
         # if couchdb set a admin must use http auth
         # to create or delete a database
+        # when create a database on a windows couchdb
+        # get error: [Errno 10054]
+
+        # allow_nonstandard_methods = True will send body with a '0'
+        # this will cause a RST from couchdb server
+        # here use pycurl client  instead of python socket
+        client = CurlAsyncHTTPClient(io_loop=self.io_loop)
         try:
-            resp = yield self.client.fetch(
-                database,
+            resp = yield client.fetch(
+                self.base_url + '/' + database,
                 method="PUT",
-                # raise_error=False,
                 auth_username=couch_conf['user'],
                 auth_password=couch_conf['passwd'],
-                allow_nonstandard_methods=True)
+                allow_nonstandard_methods=True
+                )
             raise gen.Return(resp.body)
         except HTTPError:
             # HTTP 412: Precondition Failed
