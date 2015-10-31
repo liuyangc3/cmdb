@@ -5,12 +5,11 @@ from __future__ import unicode_literals
 import os
 from tornado import gen
 from tornado import ioloop
-from tornado.httpclient import HTTPClient, HTTPRequest
 from tornado.httpclient import HTTPError
 from tornado.escape import json_decode
 
 from cmdb.httpclient import CouchAsyncHTTPClient
-from cmdb.conf import service_map
+from cmdb.conf import service_map, couch_conf
 
 
 class CouchServer(object):
@@ -18,23 +17,34 @@ class CouchServer(object):
     couchdb database operation
     """
 
-    def __init__(self, url='http://localhost:5984/', io_loop=None):
-        self.base_url = url if url.endswith('/') else url + '/'
+    def __init__(self, url='http://localhost:5984', io_loop=None):
+        self.base_url = url[:-1] if url.endswith('/') else url
         self.io_loop = io_loop or ioloop.IOLoop.instance()
-        self.client = HTTPClient()
+        self.client = CouchAsyncHTTPClient(self.base_url, self.io_loop)
 
+    @gen.coroutine
     def create(self, database):
+        # if couchdb set a admin must use http auth
+        # to create or delete a database
         try:
-            resp = self.client.fetch(self.base_url + database, method="PUT", body='')
-            return resp.body
+            resp = yield self.client.fetch(
+                database,
+                method="PUT",
+                # raise_error=False,
+                auth_username=couch_conf['user'],
+                auth_password=couch_conf['passwd'],
+                allow_nonstandard_methods=True)
+            raise gen.Return(resp.body)
         except HTTPError:
-            raise ValueError("Database: {0} Exist".format(database))
+            # HTTP 412: Precondition Failed
+            raise ValueError('Database: {0} Exist'.format(database))
 
     @staticmethod
     def _get_design(root):
         design_path = os.path.join(root, 'design')
         return [os.path.join(design_path, f) for f in os.listdir(design_path)]
 
+    @gen.coroutine
     def init(self, database):
         """
         add design document to a new database
@@ -44,22 +54,33 @@ class CouchServer(object):
         for design in designs:
             design_name = os.path.basename(design).split('.')[0]
             with open(design) as f:
-                doc = f.read()
-                self.client.fetch(
-                    self.base_url + '{0}/_design/{1}'.format(database, design_name),
-                    method="PUT", body=doc
+                doc = json_decode(f.read())
+                yield self.client.fetch(
+                    '{0}/_design/{1}'.format(database, design_name),
+                    method="PUT",
+                    body=doc,
+                    auth_username=couch_conf['user'],
+                    auth_password=couch_conf['passwd']
                 )
 
+    @gen.coroutine
     def delete(self, database):
         try:
-            resp = self.client.fetch(self.base_url + database, method="DELETE")
-            return resp.body
+            resp = yield self.client.fetch(
+                database,
+                method="DELETE",
+                auth_username=couch_conf['user'],
+                auth_password=couch_conf['passwd']
+            )
+            raise gen.Return(resp.body)
         except HTTPError:
             raise ValueError('Database: {0} not Exist'.format(database))
 
+    @gen.coroutine
     def list_db(self):
-        resp = self.client.fetch(self.base_url + '_all_dbs')
-        return [db for db in json_decode(resp.body) if not db.startswith('_')]
+        resp = yield self.client.fetch('_all_dbs', method="GET", allow_nonstandard_methods=True)
+        databases = [db for db in json_decode(resp.body) if not db.startswith('_')]
+        raise gen.Return(databases)
 
 
 class Document(dict):
@@ -81,8 +102,8 @@ class CouchBase(object):
     couchdb document operation
     """
 
-    def __init__(self, url='http://localhost:5984/', io_loop=None):
-        self.url = url if url.endswith('/') else url + '/'
+    def __init__(self, url='http://localhost:5984', io_loop=None):
+        self.url = url[:-1] if url.endswith('/') else url
         self.io_loop = io_loop or ioloop.IOLoop.instance()
         self.client = CouchAsyncHTTPClient(self.url, io_loop=self.io_loop)
 
@@ -149,7 +170,7 @@ class Service(CouchBase):
     service document operation
     """
 
-    def __init__(self, url='http://localhost:5984/', io_loop=None):
+    def __init__(self, url='http://localhost:5984', io_loop=None):
         super(Service, self).__init__(url, io_loop)
         self.reserved_key = ('type', 'ip', 'port')
 
@@ -209,7 +230,7 @@ class Project(CouchBase):
     project document operation
     """
 
-    def __init__(self, url='http://localhost:5984/', io_loop=None):
+    def __init__(self, url='http://localhost:5984', io_loop=None):
         super(Project, self).__init__(url, io_loop)
         self.reserved_key = ('type', 'services')
 
