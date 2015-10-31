@@ -68,45 +68,80 @@ curl http://localhost:5984/cmdb/_design/project/_view/list?group=true
 ```
 
 
-# 服务api
-/api/v1/service/<service id>
-## 查看服务
-GET
-## 添加服务
+# api
+
+## database 数据库
+/api/v1/<database>
+
+### 创建数据库
+数据库名只能以小写字母开头,内容必须是字母数字和`-`,`_`
 ```
-curl -X POST http://localhost:8005/api/v1/service/1.1.1.1:8080 -d 'name=hello'
+curl -X POST http://localhost:8005/api/v1/database/couch-test
+{"ok":true}
 ```
-# 更新服务
+### 查看所有数据库
 ```
-curl -X PUT http://localhost:8005/api/v1/service/1.1.1.1:8080 -d 'name=world'
+curl http://localhost:8005/api/v1/cmdb
+["cmdb", "couch-test"]
 ```
-# 删除服务
+### 删除数据库
+```
+curl -X DELETE http://localhost:8005/api/v1/database/couch-test
+{"ok":true}
+```
+## service 服务
+/api/v1/<database>/service/<service id>
+### 查看服务
+
+```
+curl http://localhost:8005/api/v1/cmdb/service/1.1.1.1:8080'
+{"name": "tomcat", "ip": "1.1.1.1", "_rev": "229-688a685b088505c1bb8afe94c0458b4f", "_id": "1.1.1.1:8080", "type": "service", "port": "8080"}
+```
+
+### 添加服务
+```
+curl -X POST http://localhost:8005/api/v1/cmdb/service/1.1.1.1:8080 -d 'name=hello'
+{"ok":true,"id":"1.1.1.2:8080","rev":"1-356d10b7a0f931b32c1b9820e3c23781"}
+```
+服务的名称必须是`ip:port`的形式，如果服务的端口是`2181,3306,8080,11211,22201或者61616`可以不用在body中指定name字段
+
+name字段是服务的名称
+
+### 更新服务
+```
+curl -X PUT http://localhost:8005/api/v1/cmdb/service/1.1.1.1:8080 -d '{"_rev":"1-356d10b7a0f931b32c1b9820e3c23781","name"="hello"}'
+{"ok":true,"id":"1.1.1.2:8080","rev":"2-1bc1ba6164085b23887a7570d4b184ce"}
+```
+### 删除服务
 删除整个服务
 ```
-curl -X DELETE http://127.0.0.1:8005/api/v1/service/1.1.1.1:8080
+curl -X DELETE http://127.0.0.1:8005/api/v1/cmdb/service/1.1.1.1:8080
+{"ok": true}
 ```
 
-删除字段
+## project项目
+### 查看项目
+GET /api/v1/service/<project id>
+### 添加项目
 ```
-curl -X DELETE http://127.0.0.1:8005/api/v1/service/1.1.1.1:8080field=f1
+curl -X POST http://localhost:8005/api/v1/project/测试项目 -d 'field=hello'
 ```
+项目id(项目名称)不可以重名
 
-删除某几个字段
+项目id支持中文，但是需要对uri转义
+### 更新项目
 ```
-curl -X DELETE 'http://127.0.0.1:8005/api/v1/service/1.1.1.1:8080?field=f1&field=f2
-```
-
-# 项目api
-/api/v1/project/<project id>
-
-## 查看
-
-## 添加项目
-```
-curl -X POST http://localhost:8005/api/v1/project/测试项目 -d 'name=hello'
+curl -X POST http://localhost:8005/api/v1/project/测试项目 -d 'field=world'
 ```
 
-## 为项目添加服务
+项目中使用`services`字段来关联服务，字段值是服务id组成的数组
 
-## 更新
+为项目添加服务
+```
+curl -X PUT http://localhost:8005/api/v1/project/测试项目 -d 'services=["1.1.1.1:8080","2.2.2.2:9090"]'
+```
 
+### 删除项目
+```
+curl -X DELETE http://localhost:8005/api/v1/project/测试项目
+```
