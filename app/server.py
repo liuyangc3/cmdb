@@ -23,8 +23,8 @@ class Application(web.Application):
                 if plugin.endswith('py'):
                     module_name = plugin.split('.')[0]
                     url_prefix = '/plugins/' + module_name   # /plugins/module_name
-                    package = 'cmdb.plugins.' + module_name  # cmdb.plugins.module_name
-                    module = __builtins__.__import__(package, fromlist=['cmdb.plugins'])
+                    package = 'app.plugins.' + module_name  # app.plugins.module_name
+                    module = __builtins__.__import__(package, fromlist=['app.plugins'])
                     for suffix, handler in module.handlers:
                         url = url_prefix + suffix
                         router.append((url, handler))
