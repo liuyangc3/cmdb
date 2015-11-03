@@ -2,15 +2,17 @@
 ## 后端项目
 ```
 git clone https://gitcafe.com/hudson/cmdb.git
-cd cmdb
 python setup.py install
 ```
 ## 前端项目
 ```
-cd cmdb
+cd app
 git clone https://gitcafe.com/hudson/cmdb-front.git
 ```
-
+## run cmdb
+```
+python -m app/server
+```
 
 ## 安装数据库
 使用 couchdb 作为后端数据库,安装依赖
