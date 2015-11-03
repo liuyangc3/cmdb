@@ -8,6 +8,6 @@ setup(
     description="cmdb backend",
     author="liuyang",
     install_requires=[
-        "tornado>=4.0", 'mock',
+        "tornado>=4.0", 'mock', 'pycurl'
     ]
 )

@@ -7,7 +7,7 @@ import unittest
 from tornado.escape import json_decode
 from tornado.testing import AsyncTestCase, gen_test
 
-from cmdb.orm import CouchServer
+from app.orm import CouchServer
 
 
 class TestCouchServer(AsyncTestCase):

@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from tornado.testing import AsyncTestCase
 from tornado.testing import gen_test
 
-from cmdb.httpclient import CouchAsyncHTTPClient
+from app.httpclient import CouchAsyncHTTPClient
 
 
 class TestHttpClient(AsyncTestCase):

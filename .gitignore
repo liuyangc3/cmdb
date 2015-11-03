@@ -1,3 +1,4 @@
 /.idea
-/cmdb/cmdb-front
+/app/cmdb-front
 *.pyc
+/app/*.pyc

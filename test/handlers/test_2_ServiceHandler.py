@@ -9,13 +9,13 @@ from tornado.ioloop import IOLoop
 from tornado.escape import json_encode
 from tornado.testing import AsyncHTTPTestCase
 
-from cmdb.orm import Service
+from app.orm import Service
 from test.utils import setup_func, raise_fetch
 
 
 class TestServiceHandler(AsyncHTTPTestCase):
     def get_app(self):
-        from cmdb.route import router
+        from app.route import router
         return web.Application(router, {"debug": True})
 
     def setUp(self):

@@ -7,13 +7,13 @@ from tornado import web
 from tornado.httpclient import HTTPError
 from tornado.testing import AsyncHTTPTestCase
 
-from cmdb.orm import CouchServer
+from app.orm import CouchServer
 from test.utils import setup_fetch_sync, raise_fetch
 
 
 class TestServiceHanlder(AsyncHTTPTestCase):
     def get_app(self):
-        from cmdb.route import router
+        from app.route import router
         return web.Application(router, {"debug": True})
 
     def setUp(self):

@@ -7,8 +7,8 @@ from tornado.escape import json_decode
 from tornado.testing import AsyncTestCase
 from tornado.testing import gen_test
 
-from cmdb.orm import CouchServer, Service
-from cmdb.conf import service_map
+from app.orm import CouchServer, Service
+from app.conf import service_map
 
 
 class TestCouchService(AsyncTestCase):

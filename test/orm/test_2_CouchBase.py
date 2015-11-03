@@ -6,7 +6,7 @@ from tornado.escape import json_decode
 from tornado.testing import AsyncTestCase
 from tornado.testing import gen_test
 
-from cmdb.orm import CouchServer, CouchBase
+from app.orm import CouchServer, CouchBase
 
 
 class TestCouchBase(AsyncTestCase):
