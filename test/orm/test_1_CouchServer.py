@@ -21,10 +21,11 @@ class TestCouchServer(AsyncTestCase):
 
     @gen_test(timeout=5)
     def test_1_create(self):
-        pass
+        # pass
         # can not work in pycurl
 
-        # resp = yield self.server.create(self.database)
+        resp = yield self.server.create(self.database)
+        print(resp)
         # self.assertEqual(resp, '{"ok":true}\n')
 
     def test_get_design(self):

@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler, asynchronous
 from tornado.escape import json_encode, json_decode
 from tornado import gen
-from tornado.httpclient import HTTPError
+from tornado.httpclient import AsyncHTTPClient
 
 from cmdb.orm import CouchServer, Service, Project
 from cmdb.conf import couch_conf
@@ -220,32 +221,23 @@ class ProjectHandler(BaseHandler):
         self.finish()
 
 
-class ServiceSearchHandler(BaseHandler):
+class SearchHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, database):
-        couchdb = self.couch.use(database)
+        base_url = couch_conf['base_url']
+        url = base_url[:-1] if base_url.endswith('/') else base_url
+        client = AsyncHTTPClient(io_loop=IOLoop.instance())
         key = self.get_argument("key")
-        services = yield couchdb.list_service()
-        res = [service for service in services if key in service]
-        if res:
-            self.write(json_encode(res))
-        else:
-            self.err_write(500, "Not Found Service")
+        project_id, service_name, service_attribute = key.split('.')
+        resp = yield client.fetch(
+            "{}/{}/_design/project/_list/search/list?include_docs=true&key=\"{}\"&q={}.{}".format(
+                url, database, project_id, service_name, service_attribute
+            )
+        )
+        self.write(resp.body)
+        self.finish()
 
-
-class ProjectSearchHandler(BaseHandler):
-    @asynchronous
-    @gen.coroutine
-    def get(self, database):
-        couchdb = self.couch.use(database)
-        key = self.get_argument("key")
-        projects = yield couchdb.list_project()
-        res = [project for project in projects if key in project]
-        if res:
-            self.write(json_encode(res))
-        else:
-            self.err_write(500, "Not Found Project")
 
 if __name__ == '__main__':
     print(couch_conf['base_url'])

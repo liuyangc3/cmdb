@@ -29,13 +29,15 @@ router = [
 
     # service api
     (r'/api/v1/{0}/service/list'.format(re_db_name), ServicesHanlder),
-    (r'/api/v1/{0}/service/search'.format(re_db_name), ServiceSearchHandler),
+
     (r'/api/v1/{0}/service/{1}'.format(re_db_name, re_service_name), ServiceHanlder),
 
     # project api
     (r'/api/v1/{0}/project/list'.format(re_db_name), ProjectsHandler),
-    (r'/api/v1/{0}/project/search'.format(re_db_name), ProjectSearchHandler),
     (r'/api/v1/{0}/project/{1}'.format(re_db_name, re_project_name), ProjectHandler),
+
+    # search api
+    (r'/api/v1/{0}/search'.format(re_db_name), SearchHandler),
 
     # 非api开头的请求 由前段框架处理
     (r'^/(?!api/v1/).+', RedirectHandler, {"url": "/"})

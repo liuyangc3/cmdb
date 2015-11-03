@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import os
 from tornado import gen
 from tornado import ioloop
-from tornado.httpclient import HTTPError, AsyncHTTPClient
+from tornado.httpclient import HTTPError
 from tornado.curl_httpclient import CurlAsyncHTTPClient
 from tornado.escape import json_decode
 
@@ -253,8 +253,9 @@ class Project(CouchBase):
         :param database: couchdb database name
         :return: a list contains project_id
         """
-        resp = yield self.get_doc(database, '_design/project/_view/list?group=true')
-        raise gen.Return([row['key'] for row in resp['rows']])
+        resp = yield self.get_doc(database, '_design/project/_view/list')
+        # use set
+        raise gen.Return(list(set([row['key'] for row in resp['rows']])))
 
     @gen.coroutine
     def add_project(self, database, project_id, request_body):

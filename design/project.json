@@ -6,6 +6,14 @@
     {
       "map": "function(doc){if(doc.type==\"project\"){emit(doc._id)}}",
       "reduce": "_count"
+    },
+    "search":
+    {
+      "map": "function(doc){if(doc.type==\"project\"){for(var i in doc.services){emit(doc._id,{_id:doc.services[i]})}}}"
     }
+  },
+  "lists":
+  {
+    "search": "function(head,req){provides('text', function(){var p = req.query.q.split(\".\");var type=p[0];var attr=p[1];while(row = getRow()){var sdoc = row.doc;if(sdoc.name === type){send(sdoc[attr]);}}});}"
   }
 }
