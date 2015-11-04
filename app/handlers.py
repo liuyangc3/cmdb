@@ -69,7 +69,7 @@ class DatabaseHandler(BaseHandler):
     def post(self, database):
         try:
             resp = yield self.couch.create(database)
-            # yield self.couch.init(database)
+            yield self.couch.init(database)
             self.write(resp)
         except ValueError as e:
             self.err_write(500, e)
