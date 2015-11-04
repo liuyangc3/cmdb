@@ -108,10 +108,14 @@ class ServiceHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, database, service_id):
+        query = self.get_argument("q")
         try:
-            resp = yield self.service.get_doc(database, service_id)
-            self.write(json_encode(resp))
-        except ValueError as e:
+            doc = yield self.service.get_doc(database, service_id)
+            if query:
+                self.write(json_encode(doc[query]))
+            else:
+                self.write(json_encode(doc))
+        except Exception as e:
             self.err_write(500, e)
         self.finish()
 
@@ -176,10 +180,14 @@ class ProjectHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, database, project_id):
+        query = self.get_argument("q")
         try:
-            resp = yield self.project.get_doc(database, project_id)
-            self.write(json_encode(resp))
-        except ValueError as e:
+            doc = yield self.project.get_doc(database, project_id)
+            if query:
+                self.write(json_encode(doc[query]))
+            else:
+                self.write(json_encode(doc))
+        except Exception as e:
             self.err_write(500, e)
         self.finish()
 
@@ -225,14 +233,18 @@ class SearchHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, database):
+        """
+        api/v1/<database>/search?p=<project_id>&sname=<service name>
+        """
         base_url = couch_conf['base_url']
         url = base_url[:-1] if base_url.endswith('/') else base_url
         client = AsyncHTTPClient(io_loop=IOLoop.instance())
-        key = self.get_argument("key")
-        project_id, service_name, service_attribute = key.split('.')
+
+        project_id = self.get_argument("p")
+        service_name = self.get_argument("sname")
         resp = yield client.fetch(
-            "{}/{}/_design/project/_list/search/list?include_docs=true&key=\"{}\"&q={}.{}".format(
-                url, database, project_id, service_name, service_attribute
+            "{0}/{1}/_design/project/_list/search/search?include_docs=true&key=\"{2}\"&q={3}".format(
+                url, database, project_id, service_name
             )
         )
         self.write(resp.body)
