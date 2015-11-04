@@ -108,14 +108,17 @@ class ServiceHanlder(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, database, service_id):
-        query = self.get_argument("q")
+        query = self.get_arguments("q")
         try:
             doc = yield self.service.get_doc(database, service_id)
             if query:
-                self.write(json_encode(doc[query]))
+                self.write(json_encode(doc[query[0]]))
             else:
                 self.write(json_encode(doc))
-        except Exception as e:
+        except ValueError as e:
+            self.err_write(500, e)
+        except KeyError as e:
+            e.message = 'error key: ' + e.message
             self.err_write(500, e)
         self.finish()
 
@@ -180,14 +183,17 @@ class ProjectHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, database, project_id):
-        query = self.get_argument("q")
+        query = self.get_arguments("q")
         try:
             doc = yield self.project.get_doc(database, project_id)
             if query:
-                self.write(json_encode(doc[query]))
+                self.write(json_encode(doc[query][0]))
             else:
                 self.write(json_encode(doc))
-        except Exception as e:
+        except ValueError as e:
+            self.err_write(500, e)
+        except KeyError as e:
+            e.message = 'error key: ' + e.message
             self.err_write(500, e)
         self.finish()
 
