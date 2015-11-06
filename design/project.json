@@ -4,8 +4,7 @@
   {
     "list":
     {
-      "map": "function(doc){if(doc.type==\"project\"){emit(doc._id)}}",
-      "reduce": "_count"
+      "map": "function(doc){if(doc.type==\"project\"){emit(doc._id)}}"
     },
     "search":
     {

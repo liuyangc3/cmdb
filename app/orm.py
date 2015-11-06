@@ -6,7 +6,6 @@ import os
 from tornado import gen
 from tornado import ioloop
 from tornado.httpclient import HTTPError
-from tornado.curl_httpclient import CurlAsyncHTTPClient
 from tornado.escape import json_decode
 
 from app.httpclient import CouchAsyncHTTPClient
@@ -25,18 +24,16 @@ class CouchServer(object):
 
     @gen.coroutine
     def create(self, database):
-        # if couchdb set a admin must use http auth
-        # to create or delete a database
-        # when create a database on a windows couchdb
-        # get error: [Errno 10054]
+        # if couchdb set a admin must use http auth to create/delete a database
 
-        # allow_nonstandard_methods = True will send body with a '0'
-        # this will cause a RST from couchdb server
-        # here use pycurl client  instead of python socket
-        client = CurlAsyncHTTPClient(io_loop=self.io_loop)
+        # because tornado AsyncHttpclient can not send a empty body with 'PUT' method
+        # so here set allow_nonstandard_methods = True
+        # this option send body with a '0' instead of empty
+        # if couchdb implement on a windows client will get an error: [Errno 10054]
+        # because couchdb send a RST packet , but it works fine on Linux
         try:
-            resp = yield client.fetch(
-                self.base_url + '/' + database,
+            resp = yield self.client.fetch(
+                database,
                 method="PUT",
                 auth_username=couch_conf['user'],
                 auth_password=couch_conf['passwd'],

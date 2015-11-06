@@ -40,9 +40,13 @@ class Application(web.Application):
         super(Application, self).__init__(router, **settings)
 
 
-if __name__ == '__main__':
+def main():
     define("port", default=8005, help='run on the given port', type=int)
     options.parse_command_line()
-    http_server = httpserver.HTTPServer(Application(), xheaders=True)
-    http_server.listen(options.port)
+    server = httpserver.HTTPServer(Application(), xheaders=True)
+    server.listen(options.port)
     ioloop.IOLoop.instance().start()
+
+
+if __name__ == '__main__':
+    main()
