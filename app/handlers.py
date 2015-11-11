@@ -2,13 +2,11 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler, asynchronous
 from tornado.escape import json_encode, json_decode
 from tornado import gen
-from tornado.httpclient import AsyncHTTPClient
 
-from app.orm import CouchServer, Service, Project
+from app.orm import CouchServer, CouchBase, Service, Project
 from app.conf import couch_conf
 
 
@@ -44,6 +42,10 @@ class BaseHandler(RequestHandler):
         else:
             self.set_status(status_code, reason=e)
             self.write('{{"ok": false, "msg": "{0}"}}'.format(e))
+
+    def get_current_user(self):
+        return self.get_secure_cookie("user")
+
 
 
 class IndexHandler(RequestHandler):
@@ -236,26 +238,35 @@ class ProjectHandler(BaseHandler):
 
 
 class SearchHandler(BaseHandler):
+    def initialize(self):
+        self.client = CouchBase(couch_conf['base_url']).client
+
     @asynchronous
     @gen.coroutine
     def get(self, database):
         """
-        api/v1/<database>/search?p=<project_id>&sname=<service name>
+        api/v1/<database>/search?p=<project_id>
         """
-        base_url = couch_conf['base_url']
-        url = base_url[:-1] if base_url.endswith('/') else base_url
-        client = AsyncHTTPClient(io_loop=IOLoop.instance())
-
         project_id = self.get_argument("p")
-        service_name = self.get_argument("sname")
-        resp = yield client.fetch(
-            "{0}/{1}/_design/project/_list/search/search?include_docs=true&key=\"{2}\"&q={3}".format(
-                url, database, project_id, service_name
+        resp = yield self.client.fetch(
+            "{0}/_design/project/_list/search/search?include_docs=true&key=\"{1}\"".format(
+                database, project_id
             )
         )
         self.write(resp.body)
         self.finish()
 
+
+class LoginHandler(BaseHandler):
+    def get(self):
+        self.write('<html><body><form action="/login" method="post">'
+                   'Name: <input type="text" name="name">'
+                   '<input type="submit" value="Sign in">'
+                   '</form></body></html>')
+
+    def post(self):
+        self.set_secure_cookie("user", self.get_argument("name"))
+        self.redirect("/")
 
 if __name__ == '__main__':
     print(couch_conf['base_url'])

@@ -13,6 +13,7 @@
   },
   "lists":
   {
-    "search": "function(head,req){provides('text', function(){var p = req.query.q.split(\".\");var type=p[0];var attr=p[1];while(row = getRow()){var sdoc = row.doc;if(sdoc.name === type){send(sdoc[attr]);}}});}"
+//    "search": "function(head,req){provides('text', function(){var p = req.query.q.split(\".\");var type=p[0];var attr=p[1];while(row = getRow()){var sdoc = row.doc;if(sdoc.name === type){send(sdoc[attr]);}}});}"
+    "search": "function(head,req){provides('text',function(){var obj=new Object();while(row=getRow()){var service=row.doc;if(!obj.hasOwnProperty(service.name)){obj[service.name]=[];}obj[service.name].push(service);}send(JSON.stringify(obj));});}"
   }
 }
