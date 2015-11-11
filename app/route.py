@@ -10,7 +10,7 @@ from app.handlers import *
 # only lowercase characters, digits, and '-_'
 re_db_name = '([a-z][a-z0-9-_]+)'
 re_service_name = '(\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}:\d{2,5})'
-re_project_name = '([a-zA-Z0-9%]+)'
+re_project_name = '([a-zA-Z0-9%_-]+)'
 
 static = os.path.dirname(__file__)
 
