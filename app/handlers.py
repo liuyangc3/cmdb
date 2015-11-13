@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-from tornado.web import RequestHandler, asynchronous
+from tornado.web import RequestHandler, asynchronous, authenticated
 from tornado.escape import json_encode, json_decode
 from tornado import gen
 
@@ -28,7 +28,7 @@ class BaseHandler(RequestHandler):
         content_type = self.request.headers["Content-Type"]
         if content_type.startswith("application/json"):
             return json_decode(self.request.body)
-        if content_type.startswith("multipart/form-data")\
+        if content_type.startswith("multipart/form-data") \
                 or content_type.startswith("application/x-www-form-urlencoded"):
             # "multipart/form-data" and "application/x-www-form-urlencoded"
             # support by httputil.HTTPServerRequest
@@ -47,8 +47,53 @@ class BaseHandler(RequestHandler):
         return self.get_secure_cookie("user")
 
 
+class LoginHandler(BaseHandler):
+    def get(self):
+        try:
+            error_message = self.get_argument("error")
+            self.write('<html><body><form action="login" method="post">'
+                       'Name: <input type="text" name="username">'
+                       'Password: <input type="password" name="password">'
+                       '<input type="submit" value="Sign in">'
+                       '</form>'+error_message+'</body></html>')
+        except:
+            self.write('<html><body><form action="login" method="post">'
+                       'Name: <input type="text" name="username">'
+                       'Password: <input type="password" name="password">'
+                       '<input type="submit" value="Sign in">'
+                       '</form></body></html>')
 
-class IndexHandler(RequestHandler):
+    def check_user(self, username, password):
+        if username == "admin" and password == "admin":
+            return True
+        return False
+
+    def set_user(self, username):
+        if username:
+            self.set_secure_cookie("user", json_encode(username))
+        else:
+            self.clear_cookie("user")
+
+    def post(self):
+        username = self.get_argument("username", "")
+        password = self.get_argument("password", "")
+        if self.check_user(username, password):
+            self.set_user(username)
+            self.redirect(self.get_argument("next", "/"))
+        else:
+
+            error_msg = "?error=" + "invalid name or password"
+            self.redirect("/login" + error_msg)
+
+
+class LogoutHandler(BaseHandler):
+    def get(self):
+        self.clear_cookie("user")
+        self.redirect(self.get_argument("next", "/"))
+
+
+class IndexHandler(BaseHandler):
+    @authenticated
     def get(self):
         self.render('index.html')
 
@@ -233,7 +278,7 @@ class ProjectHandler(BaseHandler):
             resp = yield self.project.del_doc(database, project_id)
             self.write('{{"ok": {0}}}'.format(resp))
         except ValueError as e:
-                self.err_write(500, e)
+            self.err_write(500, e)
         self.finish()
 
 
@@ -256,17 +301,6 @@ class SearchHandler(BaseHandler):
         self.write(resp.body)
         self.finish()
 
-
-class LoginHandler(BaseHandler):
-    def get(self):
-        self.write('<html><body><form action="/login" method="post">'
-                   'Name: <input type="text" name="name">'
-                   '<input type="submit" value="Sign in">'
-                   '</form></body></html>')
-
-    def post(self):
-        self.set_secure_cookie("user", self.get_argument("name"))
-        self.redirect("/")
 
 if __name__ == '__main__':
     print(couch_conf['base_url'])

@@ -23,6 +23,10 @@ router = [
     (r'/views/(.*)', StaticFileHandler, {"path": os.path.join(static, "cmdb-front/app/views")}),
     (r'/image/(.*)', StaticFileHandler, {"path": os.path.join(static, "cmdb-front/app/image")}),
 
+    # login
+    (r'/login', LoginHandler),
+    (r'/logout', LogoutHandler),
+
     # database api
     (r'/api/v1/database/list'.format(re_db_name), DatabasesHandler),
     (r'/api/v1/database/{0}'.format(re_db_name), DatabaseHandler),

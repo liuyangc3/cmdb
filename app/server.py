@@ -32,9 +32,9 @@ class Application(web.Application):
         settings = dict(
             # debug=True,
             static_path=os.path.join(os.path.dirname(__file__), "cmdb-front/app"),
-            template_path=os.path.join(os.path.dirname(__file__), "cmdb-front/app/views")
-            # cookie_secret=options.cookie_secret,
-            # login_url=options.login_url,
+            template_path=os.path.join(os.path.dirname(__file__), "cmdb-front/app/views"),
+            cookie_secret="fgjiOJHhng&640",
+            login_url="/login"
             # static_url_prefix=options.static_url_prefix,
         )
         super(Application, self).__init__(router, **settings)
