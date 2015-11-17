@@ -230,6 +230,25 @@ class Service(CouchBase):
         raise gen.Return(resp)
 
 
+class ServiceGroup(CouchBase):
+    """
+    service group document operation
+    """
+    DocType = 'service_group'
+
+    def __init__(self, url='http://localhost:5984', io_loop=None):
+        super(ServiceGroup, self).__init__(url, io_loop)
+        self.reserved_key = ('type', 'ip', 'port')
+
+    def check_service_name(self, service_group):
+        # check every service added has same service name
+        pass
+
+    def add_group(self, database, group_id, request_body):
+
+        pass
+
+
 class Project(CouchBase):
     """
     project document operation
@@ -251,7 +270,7 @@ class Project(CouchBase):
         :return: a list contains project_id
         """
         resp = yield self.get_doc(database, '_design/project/_view/list')
-        # use set
+        # use set to remove duplicate item
         raise gen.Return(list(set([row['key'] for row in resp['rows']])))
 
     @gen.coroutine
@@ -279,3 +298,6 @@ class Project(CouchBase):
                     raise ValueError('Service: {0} not exist'.format(req_service))
         resp = yield self.update_doc(database, project_id, request_body)
         raise gen.Return(resp)
+
+
+

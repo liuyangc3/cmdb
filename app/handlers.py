@@ -284,7 +284,7 @@ class ProjectHandler(BaseHandler):
 
 class SearchHandler(BaseHandler):
     def initialize(self):
-        self.client = CouchBase(couch_conf['base_url']).client
+        self.couch = CouchBase(couch_conf['base_url'])
 
     @asynchronous
     @gen.coroutine
@@ -293,12 +293,18 @@ class SearchHandler(BaseHandler):
         api/v1/<database>/search?p=<project_id>
         """
         project_id = self.get_argument("p")
-        resp = yield self.client.fetch(
+        resp = yield self.couch.client.fetch(
             "{0}/_design/project/_list/search/search?include_docs=true&key=\"{1}\"".format(
                 database, project_id
             )
         )
-        self.write(resp.body)
+        body = json_decode(resp.body)
+        project_doc = yield self.couch.get_doc(database, project_id)
+        del project_doc['_rev']
+        del project_doc['services']
+        del project_doc['type']
+        body.update({"project": project_doc})
+        self.write(body)
         self.finish()
 
 
