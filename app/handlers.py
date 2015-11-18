@@ -208,7 +208,7 @@ class ServiceHanlder(BaseHandler):
         self.finish()
 
 """
-projects
+Projects Handlers
 """
 
 class ProjectsHandler(BaseHandler):
@@ -285,6 +285,10 @@ class ProjectHandler(BaseHandler):
         except ValueError as e:
             self.err_write(500, e)
         self.finish()
+
+"""
+Search Handlers
+"""
 
 
 class SearchHandler(BaseHandler):
