@@ -2,18 +2,19 @@
   "language":"javascript",
   "views":
   {
-    "list":
-    {
-      "map": "function(doc){if(doc.type==\"project\"){emit(doc._id)}}"
-    },
-    "search":
-    {
-      "map": "function(doc){if(doc.type==\"project\"){for(var i in doc.services){emit(doc._id,{_id:doc.services[i]})}}}"
-    }
+      "list":
+      {
+        "map": "function(doc){if(doc.type==\"project\"){emit(doc.name)}}"
+      },
+      "search":
+      {
+        "map": "function(doc){if(doc.type==\"project\"){for(var i in doc.services){emit(doc._id,{_id:doc.services[i]})}}}"
+      }
   },
   "lists":
   {
+      "getPidByName": "function(head, req) {while(row=getRow()){if(req.query.q===row.key){send(row.id)}}}",
 //    "search": "function(head,req){provides('text', function(){var p = req.query.q.split(\".\");var type=p[0];var attr=p[1];while(row = getRow()){var sdoc = row.doc;if(sdoc.name === type){send(sdoc[attr]);}}});}"
-    "search": "function(head,req){provides('text',function(){var obj=new Object();while(row=getRow()){var service=row.doc;if(!obj.hasOwnProperty(service.name)){obj[service.name]=[];}obj[service.name].push(service);}send(JSON.stringify(obj));});}"
+      "search": "function(head,req){provides('text',function(){var obj=new Object();while(row=getRow()){var service=row.doc;if(!obj.hasOwnProperty(service.name)){obj[service.name]=[];}obj[service.name].push(service);}send(JSON.stringify(obj));});}"
   }
 }
