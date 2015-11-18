@@ -270,8 +270,8 @@ class Project(CouchBase):
         :return: a list contains project_id
         """
         resp = yield self.get_doc(database, '_design/project/_view/list')
-        # use set to remove duplicate item
-        raise gen.Return(list(set([row['key'] for row in resp['rows']])))
+        raise gen.Return([{'name': row['key'], 'id': row['id']} for row in resp['rows']])
+
 
     @gen.coroutine
     def add_project(self, database, project_id, request_body):
