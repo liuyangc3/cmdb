@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+import uuid
 from tornado.web import RequestHandler, asynchronous, authenticated
 from tornado.escape import json_encode, json_decode
 from tornado import gen
@@ -206,6 +207,9 @@ class ServiceHanlder(BaseHandler):
             self.err_write(500, e)
         self.finish()
 
+"""
+projects
+"""
 
 class ProjectsHandler(BaseHandler):
     def initialize(self):
@@ -246,11 +250,12 @@ class ProjectHandler(BaseHandler):
 
     @asynchronous
     @gen.coroutine
-    def post(self, database, project_id):
+    def post(self, database, project_name):
         request_body = self.project_dict.copy()
         if self.request.body:
             request_body.update(self.get_json_body_arguments())
         try:
+            project_id = uuid.uuid4().get_hex()
             resp = yield self.project.add_project(database, project_id, request_body)
             self.write(resp)
         except ValueError as e:
@@ -290,7 +295,7 @@ class SearchHandler(BaseHandler):
     @gen.coroutine
     def get(self, database):
         """
-        api/v1/<database>/search?p=<project_id>
+        /api/v1/<database>/search?p=<project_id>
         """
         project_id = self.get_argument("p")
         resp = yield self.couch.client.fetch(
@@ -305,6 +310,29 @@ class SearchHandler(BaseHandler):
         del project_doc['type']
         body.update({"project": project_doc})
         self.write(body)
+        self.finish()
+
+
+class GetProjectIdHandler(BaseHandler):
+    def initialize(self):
+        self.couch = CouchBase(couch_conf['base_url'])
+
+    @asynchronous
+    @gen.coroutine
+    def get(self, database):
+        """
+        /api/v1/<database>/getPidByName?q=<project_name>
+        """
+        project_name = self.get_argument("q")
+        try:
+            resp = yield self.couch.client.fetch(
+                "{0}/_design/project/_list/getPidByName/list?q={1}".format(
+                    database, project_name
+                )
+            )
+            self.write(resp.body)
+        except:
+            self.err_write(500, "Project {0} Not Exist".format(project_name))
         self.finish()
 
 
