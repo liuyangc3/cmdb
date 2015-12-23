@@ -49,9 +49,11 @@ class BaseHandler(RequestHandler):
     def set_cors_headers(self):
         """ support CORS """
         self.set_header("Access-Control-Allow-Origin", "*")
+        self.set_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         self.set_header("Access-Control-Allow-Headers",
-                        "accept, cache-control, origin, "
-                        "x-requested-with, x-file-name, content-type")
+                        "Content-Type, Depth, User-Agent, X-File-Size, "
+                        "X-Requested-With, X-Requested-By, If-Modified-Since,"
+                        " X-File-Name, Cache-Control")
 
 
 class LoginHandler(BaseHandler):
