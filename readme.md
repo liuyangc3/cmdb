@@ -211,41 +211,63 @@ curl -X DELETE http://127.0.0.1:8005/api/v1/cmdb/service/1.1.1.1:8080
 ## project项目
 /api/v1/service/<project id>
 ### 查看项目
-项目id就是项目的名称,全局唯一
+项目id是全局唯一uuid，就是couchdb的doc_id，项目的名字定义在name字段
 
-查看所有的项目id
+返回所有项目信息
 ```
-curl http://127.0.0.1:8005/api/v1/service/list
-["测试项目", "测试项目B" ...]
+curl http://127.0.0.1:8005/api/v1/cmdb/project/list
+[{"name": "tlw", "id": "62f99ca284fb4b028ed2518364378fb1"}, {"name": "user-center", "id": "5fbe788baaea2f8fbe863378f504662c"}]
 ```
 查看单个项目
 ```
-curl http://127.0.0.1:8005/api/v1/service/测试项目
+curl http://127.0.0.1:8005/api/v1/cmdb/project/62f99ca284fb4b028ed2518364378fb1
+{
+  "services": ["172.16.200.100:2181", "172.16.200.99:2181"],
+  "_rev": "3-401038697cac9f7939742213aaacb3df",
+  "_id": "62f99ca284fb4b028ed2518364378fb1",
+  "type": "project", 
+  "name": "tlw"
+}
 ```
-查看项目的属性
+单独查看某个属性
 ```
-curl http://127.0.0.1:8005/api/v1/service/测试项目?q=services
+curl http://127.0.0.1:8005/api/v1/cmdb/project/62f99ca284fb4b028ed2518364378fb1?q=name
+"tlw"
+curl http://127.0.0.1:8005/api/v1/cmdb/project/62f99ca284fb4b028ed2518364378fb1?q=services
+["172.16.200.100:2181", "172.16.200.99:2181"]
+}
+```
+
+查看项目的service详细信息
+```
+curl http://127.0.0.1:8005/api/v1/cmdb/search?p=62f99ca284fb4b028ed2518364378fb1
+{"project": {"_id": "62f99ca284fb4b028ed2518364378fb1", "name": "tlw"},
+ "zookeeper": [
+ {"name": "zookeeper", "ip": "172.16.200.100", "_rev": "1-dc20e6557a0237b8e792cf51f6939be4", "_id": "172.16.200.100:2181", "type": "service", "port": "2181"},
+ {"name": "zookeeper", "ip": "172.16.200.99", "_rev": "1-223ecf6b554a0851e8507afd3acd97fe", "_id": "172.16.200.99:2181", "type": "service", "port": "2181"}
+ ]
+ }
 ```
 
 ### 添加项目
 
-项目id可以是中文，如果自己构造请求需要进行url转义
+~~项目id可以是中文，如果自己构造请求需要进行url转义~~ 待完善
 ```
-curl -X POST http://localhost:8005/api/v1/project/测试项目 -d 'field=hello'
+curl -X POST http://localhost:8005/api/v1/cmdb/project/<project name> -d 'field=hello'
 ```
 ### 更新项目
 ```
-curl -X POST http://localhost:8005/api/v1/project/测试项目 -d 'field=world'
+curl -X POST http://localhost:8005/api/v1/cmdb/project/<pid> -d 'field=world'
 ```
 
 项目中使用`services`字段来关联服务，字段值是服务id组成的数组
 
 为项目添加服务
 ```
-curl -X PUT http://localhost:8005/api/v1/project/测试项目 -d 'services=["1.1.1.1:8080","2.2.2.2:9090"]'
+curl -X PUT http://localhost:8005/api/v1/project/<pid> -d 'services=["1.1.1.1:8080","2.2.2.2:9090"]'
 ```
 
 ### 删除项目
 ```
-curl -X DELETE http://localhost:8005/api/v1/project/测试项目
+curl -X DELETE http://localhost:8005/api/v1/project/<pid>
 ```
