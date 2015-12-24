@@ -71,7 +71,68 @@ curl http://localhost:5984/cmdb/_design/service/_list/get_service/list?name=tomc
 curl http://localhost:5984/cmdb/_design/project/_view/list?group=true
 ```
 
+### couchdb design 设计
 
+#### _design/service
+文档内容在design/service.json
+
+views 里定义了list的map函数，作用是列出所有type为service的doc的文档信息
+key是doc_id, value是文档的name字段,假设数据库名是cmdb，并且库中有type为service的文档，那么:
+```
+curl http://localhost:5984/cmdb/_design/service/_view/list
+{"total_rows":4,"offset":0,"rows":[
+{"id":"1.2.3.4:3306","key":"1.2.3.4:3306","value":"mysql"},
+{"id":"11.22.33.25:4501","key":"11.22.33.25:4501","value":"mysql"},
+{"id":"172.16.200.100:2181","key":"172.16.200.100:2181","value":"zookeeper"},
+{"id":"172.16.200.100:61616","key":"172.16.200.100:61616","value":"activemq"}
+]}
+```
+
+lists 定义了get_service函数，用来处理views返回数据，可以根据name字段过滤doc_id，
+例如我们只想看name字段是mysql的doc_id:
+```
+curl http://localhost:5984/cmdb/_design/service/_list/get_service/list?name=mysql
+["1.2.3.4:3306","11.22.33.25:4501"]
+```
+
+
+#### _design/project
+文档内容在design/project.json
+
+views 里定义了list的map函数，和service的design一样，返回所有type为project的文档信息:
+```
+curl http://localhost:5984/cmdb/_design/project/_view/list
+{"total_rows":2,"offset":0,"rows":[
+{"id":"62f99ca284fb4b028ed2518364378fb1","key":"tlw","value":null},
+{"id":"5fbe788baaea2f8fbe863378f504662c","key":"user-center","value":null}
+]}
+```
+search 函数可以实现查看项目文档内部所有的服务文档信息，服务文档的doc_id都在services字段
+```
+curl http://localhost:5984/cmdb/_design/project/_view/search?include_docs=true
+{"total_rows":9,"offset":0,"rows":[
+{"id":"5fbe788baaea2f8fbe863378f504662c","key":"5fbe788baaea2f8fbe863378f504662c","value":{"_id":"172.16.200.100:2181"},"doc":{"_id":"172.16.200.100:2181","_rev":"1-dc20e6557a0237b8e792cf51f6939be4","ip":"172.16.200.100","type":"service","name":"zookeeper","port":"2181"}},
+{"id":"5fbe788baaea2f8fbe863378f504662c","key":"5fbe788baaea2f8fbe863378f504662c","value":{"_id":"172.16.200.100:61616"},"doc":{"_id":"172.16.200.100:61616","_rev":"1-28dd71488be8f386b0096f3e3dfef360","ip":"172.16.200.100","type":"service","name":"activemq","port":"61616"}},
+...
+{"id":"62f99ca284fb4b028ed2518364378fb1","key":"62f99ca284fb4b028ed2518364378fb1","value":{"_id":"172.16.200.100:2181"},"doc":{"_id":"172.16.200.100:2181","_rev":"1-dc20e6557a0237b8e792cf51f6939be4","ip":"172.16.200.100","type":"service","name":"zookeeper","port":"2181"}}
+]}
+```
+
+
+lists 有2个函数，getPidByName，顾名思义就是根据project的name字段找到doc_id
+```
+curl http://localhost:5984/cmdb/_design/project/_list/getPidByName/project/list?name=tlw
+62f99ca284fb4b028ed2518364378fb1
+```
+第二个search函数用来实现配置管理的，例如查看田联网的zookeeper服务的信息:
+```
+curl http://localhost:5984/cmdb/_design/project/_list/search/project/search?include_docs=true&key="62f99ca284fb4b028ed2518364378fb1"&q=zookeeper
+{"zookeeper":[
+    {"_id":"172.16.200.100:2181","_rev":"1-dc20e6557a0237b8e792cf51f6939be4","ip":"172.16.200.100","type":"service","name":"zookeeper","port":"2181"},
+    {"_id":"172.16.200.99:2181","_rev":"1-223ecf6b554a0851e8507afd3acd97fe","ip":"172.16.200.99","type":"service","name":"zookeeper","port":"2181"}
+    ]
+}
+```
 # api
 
 ## database 数据库
