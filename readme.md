@@ -249,30 +249,25 @@ curl http://127.0.0.1:8005/api/v1/cmdb/search?p=62f99ca284fb4b028ed2518364378fb1
  }
 ```
 
-查看项目的属性
-```
-curl http://127.0.0.1:8005/api/v1/service/测试项目?q=services
-```
-
 ### 添加项目
 
-项目id可以是中文，如果自己构造请求需要进行url转义
+~~项目id可以是中文，如果自己构造请求需要进行url转义~~ 待完善
 ```
-curl -X POST http://localhost:8005/api/v1/project/测试项目 -d 'field=hello'
+curl -X POST http://localhost:8005/api/v1/cmdb/project/<project name> -d 'field=hello'
 ```
 ### 更新项目
 ```
-curl -X POST http://localhost:8005/api/v1/project/测试项目 -d 'field=world'
+curl -X POST http://localhost:8005/api/v1/cmdb/project/<pid> -d 'field=world'
 ```
 
 项目中使用`services`字段来关联服务，字段值是服务id组成的数组
 
 为项目添加服务
 ```
-curl -X PUT http://localhost:8005/api/v1/project/测试项目 -d 'services=["1.1.1.1:8080","2.2.2.2:9090"]'
+curl -X PUT http://localhost:8005/api/v1/project/<pid> -d 'services=["1.1.1.1:8080","2.2.2.2:9090"]'
 ```
 
 ### 删除项目
 ```
-curl -X DELETE http://localhost:8005/api/v1/project/测试项目
+curl -X DELETE http://localhost:8005/api/v1/project/<pid>
 ```
