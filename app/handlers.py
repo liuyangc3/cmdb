@@ -24,8 +24,7 @@ def parse_args(tornado_arguments):
 
 class BaseHandler(RequestHandler):
     def get_json_body_arguments(self):
-        """ 解析 request.body, 支持 JSON格式
-        """
+        """ 解析 request.body, 支持 JSON格式 """
         content_type = self.request.headers["Content-Type"]
         if content_type.startswith("application/json"):
             return json_decode(self.request.body)
@@ -47,6 +46,15 @@ class BaseHandler(RequestHandler):
     def get_current_user(self):
         return self.get_secure_cookie("user")
 
+    def set_cors_headers(self):
+        """ support CORS """
+        self.set_header("Access-Control-Allow-Origin", "*")
+        self.set_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.set_header("Access-Control-Allow-Headers",
+                        "Content-Type, Depth, User-Agent, X-File-Size, "
+                        "X-Requested-With, X-Requested-By, If-Modified-Since,"
+                        " X-File-Name, Cache-Control")
+
 
 class LoginHandler(BaseHandler):
     def get(self):
@@ -56,7 +64,7 @@ class LoginHandler(BaseHandler):
                        'Name: <input type="text" name="username">'
                        'Password: <input type="password" name="password">'
                        '<input type="submit" value="Sign in">'
-                       '</form>'+error_message+'</body></html>')
+                       '</form>' + error_message + '</body></html>')
         except:
             self.write('<html><body><form action="login" method="post">'
                        'Name: <input type="text" name="username">'
@@ -207,9 +215,11 @@ class ServiceHanlder(BaseHandler):
             self.err_write(500, e)
         self.finish()
 
+
 """
 Projects Handlers
 """
+
 
 class ProjectsHandler(BaseHandler):
     def initialize(self):
@@ -218,6 +228,7 @@ class ProjectsHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, database):
+        self.set_cors_headers()
         try:
             resp = yield self.project.list_project(database)
             self.write(json_encode(resp))
@@ -285,6 +296,7 @@ class ProjectHandler(BaseHandler):
         except ValueError as e:
             self.err_write(500, e)
         self.finish()
+
 
 """
 Search Handlers
