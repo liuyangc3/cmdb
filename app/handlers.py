@@ -249,7 +249,7 @@ class ProjectHandler(BaseHandler):
         try:
             doc = yield self.project.get_doc(database, project_id)
             if query:
-                self.write(json_encode(doc[query][0]))
+                self.write(json_encode(doc[query]))
             else:
                 self.write(json_encode(doc))
         except ValueError as e:
@@ -312,6 +312,14 @@ class SearchHandler(BaseHandler):
     def get(self, database):
         """
         /api/v1/<database>/search?p=<project_id>
+        返回项目和服务信息，服务按类别以数组的形式返回，格式如下
+        {"project": {"_id": "62f99ca284fb4b028ed2518364378fb1", "name": "tlw"},
+         "zookeeper": [
+            {"name": "zookeeper", "ip": "172.16.200.100", "port": "2181" ...},
+            {"name": "zookeeper", "ip": "172.16.200.99",  "port": "2181" ...}
+         ],
+         "tomcat" : [{...}, {...}]
+        }
         """
         project_id = self.get_argument("p")
         resp = yield self.couch.client.fetch(
