@@ -231,13 +231,10 @@ curl http://127.0.0.1:8005/api/v1/cmdb/project/62f99ca284fb4b028ed2518364378fb1
 ```
 单独查看某个属性
 ```
-curl http://127.0.0.1:8005/api/v1/cmdb/project/62f99ca284fb4b028ed2518364378fb1?q=
-{
-  "services": ["172.16.200.100:2181", "172.16.200.99:2181"],
-  "_rev": "3-401038697cac9f7939742213aaacb3df",
-  "_id": "62f99ca284fb4b028ed2518364378fb1",
-  "type": "project", 
-  "name": "tlw"
+curl http://127.0.0.1:8005/api/v1/cmdb/project/62f99ca284fb4b028ed2518364378fb1?q=name
+"tlw"
+curl http://127.0.0.1:8005/api/v1/cmdb/project/62f99ca284fb4b028ed2518364378fb1?q=services
+["172.16.200.100:2181", "172.16.200.99:2181"]
 }
 
 查看项目的service详细信息

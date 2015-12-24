@@ -245,7 +245,7 @@ class ProjectHandler(BaseHandler):
     @asynchronous
     @gen.coroutine
     def get(self, database, project_id):
-        query = self.get_arguments("q")
+        query = self.get_arguments("q")[0]
         try:
             doc = yield self.project.get_doc(database, project_id)
             if query:
